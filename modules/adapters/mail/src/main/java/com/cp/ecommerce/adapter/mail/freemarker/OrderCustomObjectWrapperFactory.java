@@ -8,6 +8,7 @@ import java.util.Optional;
 import com.cp.ecommerce.adapter.mail.freemarker.formatter.DefaultLocalDateFormatter;
 import com.cp.ecommerce.adapter.mail.pdf.constant.PdfConstants;
 import com.cp.ecommerce.adapter.mail.pdf.ftl.ContactFtl;
+import com.cp.ecommerce.adapter.mail.pdf.utils.XmlText;
 import com.cp.ecommerce.domain.order.Order;
 
 import org.apache.commons.lang3.StringUtils;
@@ -75,7 +76,7 @@ public class OrderCustomObjectWrapperFactory implements CustomObjectWrapperFacto
             parameters.put(
                     PdfConstants.ORDER_NUMBER,
                     StringUtils.isNotBlank(order.getOrderNumber()) ? order.getOrderNumber() : 0);
-            parameters.put(PdfConstants.REMARKS, order.getRemarks());
+            parameters.put(PdfConstants.REMARKS, XmlText.clean(order.getRemarks()));
             return parameters;
         }
 

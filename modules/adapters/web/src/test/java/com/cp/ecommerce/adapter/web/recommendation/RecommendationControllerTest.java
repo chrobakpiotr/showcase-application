@@ -124,6 +124,17 @@ class RecommendationControllerTest {
     }
 
     @Test
+    void shouldReturn400WithAFixedDetailWhenTheBodyIsMalformed() throws Exception {
+
+        mockMvc.perform(post(ENDPOINT).contentType(MediaType.APPLICATION_JSON).content("{\"email\": jan.kowalski"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("urn:problem-type:malformed-request"))
+                .andExpect(jsonPath("$.detail").value("Malformed request"));
+
+        verify(recommendProductsInPort, never()).recommendProducts(any());
+    }
+
+    @Test
     void shouldThrowBadRequestWhenControllerReceivesNullEmail() {
 
         final RecommendationController controller = new RecommendationController(

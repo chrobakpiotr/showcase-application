@@ -9,6 +9,7 @@ import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.mail.freemarker.FreeMarkerTemplateProcessor;
 import com.cp.ecommerce.adapter.mail.pdf.PdfGenerator;
 import com.cp.ecommerce.adapter.mail.pdf.utils.ClasspathResourceResolver;
+import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.order.Order;
@@ -103,6 +104,30 @@ public class PdfGeneratorIntegrationTest {
         final String body = freeMarkerTemplateProcessor.processTemplate(EMAIL_TEMPLATE_FILE_NAME, EMAIL_PATH, order);
 
         assertThat(body).contains("Smith &amp; Co &lt;fo:block&gt;").doesNotContain("<fo:block>");
+    }
+
+    @Test
+    public void shouldEscapeAddressAndContactDataAndDropForbiddenCharacters() {
+
+        final Contact contact = Contact.builder().fullName("Jan <b>").email(TEST_EMAIL).phone("+48 (600) 700-800").build();
+        final Address address = Address.builder()
+                .street("Main & <Street>")
+                .city("\"City\"")
+                .postalCode("00-001")
+                .countryCode("PL")
+                .build();
+        final Order order = Order.builder()
+                .orderNumber(TEST_ORDER_NUMBER)
+                .remarks("ring \u0007 twice")
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                .customer(Customer.builder().contact(contact).address(address).build())
+                .build();
+
+        final String document = freeMarkerTemplateProcessor.processTemplate(TEMPLATE_FILE_NAME, TEST_FILE_PATH, order);
+
+        assertThat(document).contains("Jan &lt;b&gt;", "Main &amp; &lt;Street&gt;", "&quot;City&quot;", "ring  twice")
+                .doesNotContain("\u0007");
+        assertThat(new PdfGenerator(fopXml, resourceResolver).generatePdf(document)).isNotEmpty();
     }
 
     @Test

@@ -96,6 +96,11 @@ class NotificationControllerTest {
         final String blankRecipient = "{\"recipientEmail\":\" \"}";
         mockMvc.perform(post(RECIPIENT_SEARCH_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(blankRecipient))
                 .andExpect(status().isBadRequest());
+        mockMvc.perform(post(RECIPIENT_SEARCH_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest());
+        final String invalidPage = RECIPIENT_SEARCH_ENDPOINT + "?page=x";
+        mockMvc.perform(post(invalidPage).contentType(MediaType.APPLICATION_JSON).content(RECIPIENT_SEARCH_BODY))
+                .andExpect(status().isBadRequest());
         verifyNoInteractions(listNotificationsInPort);
     }
 

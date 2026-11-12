@@ -3,6 +3,7 @@ package com.cp.ecommerce.adapter.mail.pdf.ftl;
 import java.io.Serializable;
 import java.util.Optional;
 
+import com.cp.ecommerce.adapter.mail.pdf.utils.XmlText;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
@@ -35,9 +36,9 @@ public record ContactFtl(String fullName, EmailFtl email, String phone, AddressF
         final Optional<Contact> contact = ofNullable(addressInfo.getContact());
 
         return ContactFtl.builder()
-                .fullName(contact.map(Contact::getFullName).orElse(null))
+                .fullName(XmlText.clean(contact.map(Contact::getFullName).orElse(null)))
                 .email(EmailFtl.of(contact.map(Contact::getEmail).orElse(null)))
-                .phone(contact.map(Contact::getPhone).orElse(null))
+                .phone(XmlText.clean(contact.map(Contact::getPhone).orElse(null)))
                 .address(AddressFtl.of(address.orElse(null)))
                 .build();
     }

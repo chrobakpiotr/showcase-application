@@ -24,7 +24,7 @@
                       color="black"
                       text-align="center"
                       padding-top="2pt">
-                ${message!}
+                ${(message!)?html}
             </fo:block>
             <!-- normal text -->
             <fo:block font-size="10pt"

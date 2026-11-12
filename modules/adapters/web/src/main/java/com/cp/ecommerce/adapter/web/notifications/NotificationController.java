@@ -76,6 +76,12 @@ public class NotificationController {
             summary = "List notifications for a recipient",
             description = "Newest first, page by page. The recipient e-mail travels in the request body so that it stays out "
                     + "of URLs, access logs and traces.")
+    @ApiResponse(
+            responseCode = "400",
+            description = "Recipient e-mail missing or blank, malformed body, or invalid page or size",
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
     public PagedModel<EntityModel<NotificationResource>> listNotificationsForRecipient(
             @RequestBody(required = false) final RecipientSearchResource search,
             @RequestParam(name = "page", defaultValue = "0") final int page,

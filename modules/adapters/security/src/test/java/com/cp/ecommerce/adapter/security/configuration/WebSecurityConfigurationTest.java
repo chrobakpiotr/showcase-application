@@ -314,6 +314,13 @@ class WebSecurityConfigurationTest {
     }
 
     @Test
+    void shouldDenyTheRemovedRecommendationsGet() throws Exception {
+
+        mockMvc.perform(get(RECOMMENDATIONS_ENDPOINT).with(jwt().authorities(() -> ORDER_READ_AUTHORITY)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void shouldRejectUnknownApiForAnonymousCaller() throws Exception {
 
         mockMvc.perform(get(UNKNOWN_API_ENDPOINT)).andExpect(status().isUnauthorized());

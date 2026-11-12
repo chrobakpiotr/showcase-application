@@ -28,10 +28,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.micrometer.tracing.Tracer;
@@ -81,6 +83,8 @@ public class GlobalExceptionHandler extends ReturnAndShipmentExceptionHandlerSup
     private static final URI TYPE_RATE_LIMIT_EXCEEDED = URI.create(PROBLEM_TYPE_PREFIX + "rate-limit-exceeded");
     private static final URI TYPE_DATA_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "data-conflict");
     private static final URI TYPE_INTERNAL_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "internal-error");
+
+    private static final URI TYPE_MALFORMED_REQUEST = URI.create(PROBLEM_TYPE_PREFIX + "malformed-request");
 
     public GlobalExceptionHandler(final ObjectProvider<Tracer> tracerProvider) {
 
@@ -254,6 +258,14 @@ public class GlobalExceptionHandler extends ReturnAndShipmentExceptionHandlerSup
                 TYPE_TECHNICAL_PROBLEM,
                 "Technical Problem",
                 exception.getMessage());
+    }
+
+    /** A body or parameter the server cannot read is the client's mistake; the detail is fixed, not the parser text. */
+    @ResponseStatus(BAD_REQUEST)
+    @ExceptionHandler({ HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class })
+    public ProblemDetail malformedRequest(final RuntimeException exception) {
+
+        return problemDetail(exception, BAD_REQUEST, TYPE_MALFORMED_REQUEST, "Bad Request", "Malformed request");
     }
 
     /** Unmapped failures are 500s; a client-data unique-key violation anywhere in the cause chain is a 409 conflict. */

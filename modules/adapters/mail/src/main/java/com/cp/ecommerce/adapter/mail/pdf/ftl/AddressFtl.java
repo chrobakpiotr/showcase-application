@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.mail.pdf.ftl;
 
 import java.io.Serializable;
 
+import com.cp.ecommerce.adapter.mail.pdf.utils.XmlText;
 import com.cp.ecommerce.domain.customer.Address;
 
 import lombok.Builder;
@@ -21,10 +22,10 @@ public record AddressFtl(String countryCode, String postalCode, String city, Str
         }
 
         return AddressFtl.builder()
-                .street(address.getStreet())
-                .countryCode(address.getCountryCode())
-                .postalCode(address.getPostalCode())
-                .city(address.getCity())
+                .street(XmlText.clean(address.getStreet()))
+                .countryCode(XmlText.clean(address.getCountryCode()))
+                .postalCode(XmlText.clean(address.getPostalCode()))
+                .city(XmlText.clean(address.getCity()))
                 .build();
     }
 
