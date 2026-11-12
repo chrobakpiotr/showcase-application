@@ -52,7 +52,9 @@ class WebSecurityConfigurationTest {
 
     private static final String SUPPORT_ASSISTANT_ENDPOINT = "/api/support-assistant/questions";
 
-    private static final String RECOMMENDATIONS_ENDPOINT = "/api/recommendations?email=customer@example.com";
+    private static final String RECOMMENDATIONS_ENDPOINT = "/api/recommendations";
+
+    private static final String RECIPIENT_SEARCH_ENDPOINT = "/api/notifications/recipient-search";
 
     private static final String UNKNOWN_API_ENDPOINT = "/api/not-explicitly-allowed";
 
@@ -290,20 +292,20 @@ class WebSecurityConfigurationTest {
     @Test
     void shouldRejectAnonymousRecommendations() throws Exception {
 
-        mockMvc.perform(get(RECOMMENDATIONS_ENDPOINT)).andExpect(status().isUnauthorized());
+        mockMvc.perform(post(RECOMMENDATIONS_ENDPOINT)).andExpect(status().isUnauthorized());
     }
 
     @Test
     void shouldRejectRecommendationsWithoutOrderReadRole() throws Exception {
 
-        mockMvc.perform(get(RECOMMENDATIONS_ENDPOINT).with(jwt().authorities(() -> "ROLE_CATALOG_READ")))
+        mockMvc.perform(post(RECOMMENDATIONS_ENDPOINT).with(jwt().authorities(() -> "ROLE_CATALOG_READ")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void shouldAllowRecommendationsWithOrderReadRole() throws Exception {
 
-        final int status = mockMvc.perform(get(RECOMMENDATIONS_ENDPOINT).with(jwt().authorities(() -> ORDER_READ_AUTHORITY)))
+        final int status = mockMvc.perform(post(RECOMMENDATIONS_ENDPOINT).with(jwt().authorities(() -> ORDER_READ_AUTHORITY)))
                 .andReturn()
                 .getResponse()
                 .getStatus();
@@ -346,6 +348,33 @@ class WebSecurityConfigurationTest {
                 .getStatus();
 
         assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldRejectRecipientSearchWithoutNotificationReadRole() throws Exception {
+
+        mockMvc.perform(post(RECIPIENT_SEARCH_ENDPOINT)).andExpect(status().isUnauthorized());
+        mockMvc.perform(post(RECIPIENT_SEARCH_ENDPOINT).with(jwt().authorities(() -> ORDER_READ_AUTHORITY)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldAllowRecipientSearchWithNotificationReadRole() throws Exception {
+
+        final int status = mockMvc
+                .perform(post(RECIPIENT_SEARCH_ENDPOINT).with(jwt().authorities(() -> "ROLE_NOTIFICATION_READ")))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldDenyOtherNotificationWrites() throws Exception {
+
+        mockMvc.perform(post(NOTIFICATIONS_ENDPOINT).with(jwt().authorities(() -> "ROLE_NOTIFICATION_READ")))
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -46,6 +46,7 @@ public class WebSecurityConfiguration {
     // Recommendations are personalized from order/review history keyed by arbitrary customer e-mail. There is no
     // customer identity/ownership model in this showcase, so ADR 0044 treats this as operator data access and reuses
     // ORDER_READ rather than exposing customer history anonymously.
+    // The e-mail travels in a POST body so it stays out of URLs, access logs and traces.
     private static final String RECOMMENDATIONS_API_PATH_MATCHER = "/api/recommendations";
 
     // Public support remains available to anonymous storefront users, but ADR 0044 removes all customer-data tools and
@@ -74,6 +75,10 @@ public class WebSecurityConfiguration {
     private static final String RETURNS_API_PATH_MATCHER = "/api/returns/**";
 
     private static final String NOTIFICATIONS_API_PATH_MATCHER = "/api/notifications/**";
+
+    // A read-only search that is a POST so the recipient e-mail stays in the body, out of URLs, access logs and traces.
+    // Exact path, so no other POST under /api/notifications becomes reachable.
+    private static final String NOTIFICATIONS_RECIPIENT_SEARCH_API_PATH_MATCHER = "/api/notifications/recipient-search";
 
     private static final String SHIPMENTS_API_PATH_MATCHER = "/api/shipments/**";
 
@@ -155,6 +160,8 @@ public class WebSecurityConfiguration {
                         .hasRole(RETURN_WRITE_ROLE)
                         .requestMatchers(HttpMethod.GET, NOTIFICATIONS_API_PATH_MATCHER)
                         .hasRole(NOTIFICATION_READ_ROLE)
+                        .requestMatchers(HttpMethod.POST, NOTIFICATIONS_RECIPIENT_SEARCH_API_PATH_MATCHER)
+                        .hasRole(NOTIFICATION_READ_ROLE)
                         .requestMatchers(HttpMethod.GET, SHIPMENTS_API_PATH_MATCHER)
                         .hasRole(SHIPMENT_READ_ROLE)
                         .requestMatchers(HttpMethod.POST, SHIPMENTS_API_PATH_MATCHER)
@@ -171,7 +178,7 @@ public class WebSecurityConfiguration {
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, SUPPORT_ASSISTANT_QUESTIONS_API_PATH_MATCHER)
                         .permitAll()
-                        .requestMatchers(HttpMethod.GET, RECOMMENDATIONS_API_PATH_MATCHER)
+                        .requestMatchers(HttpMethod.POST, RECOMMENDATIONS_API_PATH_MATCHER)
                         .hasRole(ORDER_READ_ROLE)
                         .requestMatchers("/api/**")
                         .denyAll()

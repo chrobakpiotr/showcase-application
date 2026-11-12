@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -9,10 +9,11 @@ import { RecommendationsResponseModel } from '@app/recommendations/recommendatio
 export class RecommendationsService {
   private readonly httpClient = inject(HttpClient);
 
+  // The e-mail goes in the request body so it stays out of URLs, access logs and traces.
   getRecommendations(email: string): Observable<RecommendationsResponseModel> {
-    return this.httpClient.get<RecommendationsResponseModel>(
+    return this.httpClient.post<RecommendationsResponseModel>(
       `${environment.apiPrefix}/recommendations`,
-      { params: new HttpParams().set('email', email) }
+      { email }
     );
   }
 }

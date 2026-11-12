@@ -33,8 +33,10 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
   template errors itself, and the PDF transformer reports errors only by throwing. A successful mail send logs only
   the dispatch id. All six Ollama adapters log only the cause class names on fallback, and an unrecognised model value
   by its length.
-- Known remaining exposure: `GET /api/notifications/recipient/{recipientEmail}` and `GET /api/recommendations?email=`
-  carry an email address in the URL, which Spring's debug request log, access logs and trace attributes record.
+- No endpoint takes a customer e-mail in its URL: recommendations and the notification recipient search take it in a
+  POST body, so it does not reach access logs, Spring's debug request log or trace attributes.
+- Mail and PDF templates HTML/XML-escape every value, including customer names, contact data and remarks, so
+  markup in customer text is printed as text and cannot break or alter the document.
 - New code must not put customer fields into log lines or exception messages; masking is a backstop, not the control.
 
 A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Alloy, with pre-provisioned datasources

@@ -8,11 +8,13 @@ import java.util.stream.Stream;
 import com.cp.ecommerce.adapter.web.assistant.resource.SupportAnswerResource;
 import com.cp.ecommerce.adapter.web.assistant.resource.SupportQuestionResource;
 import com.cp.ecommerce.adapter.web.notifications.resource.NotificationResource;
+import com.cp.ecommerce.adapter.web.notifications.resource.RecipientSearchResource;
 import com.cp.ecommerce.adapter.web.order.resource.AnalyticsAnswerResource;
 import com.cp.ecommerce.adapter.web.order.resource.AnalyticsQuestionResource;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
+import com.cp.ecommerce.adapter.web.recommendation.resource.RecommendationQueryResource;
 import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
 import com.cp.ecommerce.adapter.web.returns.resource.ReturnRequestResource;
 import com.cp.ecommerce.adapter.web.review.resource.ReviewResource;
@@ -42,7 +44,9 @@ class PersonalDataResourceToStringTest {
                 RequestReturnResource.class,
                 ReturnRequestResource.class,
                 SupportAnswerResource.class,
-                AnalyticsAnswerResource.class);
+                AnalyticsAnswerResource.class,
+                RecommendationQueryResource.class,
+                RecipientSearchResource.class);
     }
 
     @ParameterizedTest

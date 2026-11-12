@@ -71,3 +71,10 @@ order customer's contact email. That keeps the returns bounded context itself in
   bounded-context flows.
 - `RETURN_APPROVED` exists in the enum for future expansion, but the current integration intentionally emits only
   `RETURN_REJECTED` and `RETURN_REFUNDED` from the returns workflow.
+
+## Update 2026-11-11: recipient search in the request body
+
+`GET /api/notifications/recipient/{recipientEmail}` is replaced by `POST /api/notifications/recipient-search` with the
+body `{"recipientEmail": "..."}` and the same `page`/`size` query parameters; it requires `NOTIFICATION_READ`. The
+path variable put the recipient's e-mail into URLs, access logs and trace attributes. Paging links point to the same
+POST endpoint and carry no e-mail, so a client repeats the body. A missing or blank recipient returns `400`.

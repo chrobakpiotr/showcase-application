@@ -70,3 +70,9 @@ query another e-mail's history through recommendations.
 - R16 remains responsible for Authorization Code + PKCE and browser session/token
   policy;
 - R17 remains responsible for shared frontend capability/route UX.
+
+## Update 2026-11-11: e-mail in the request body
+
+The endpoint is now `POST /api/recommendations` with the body `{"email": "..."}` and still requires `ORDER_READ`.
+A query parameter put the customer's e-mail into URLs, which Spring's debug request log, access logs and trace
+attributes record. A missing body or e-mail returns `400`. See `docs/operations.md`.

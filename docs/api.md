@@ -25,7 +25,11 @@ The backend enforces the role checks independently of the frontend's route guard
 
 Anonymous API access is limited to explicitly allowed routes, including the cart, wishlist,
 public reviews and policy-only support assistant. Personalized recommendations require
-`ORDER_READ`. Unmatched `/api/**` requests are denied. The
+`ORDER_READ`. Unmatched `/api/**` requests are denied.
+
+Customer e-mail addresses never travel in URLs, because URLs reach access logs, debug request logs and trace
+attributes. Recommendations are `POST /api/recommendations` with `{"email": "..."}`, and the notification recipient
+filter is `POST /api/notifications/recipient-search?page=0&size=20` with `{"recipientEmail": "..."}`. The
 [security filter chain](../modules/adapters/security/src/main/java/com/cp/ecommerce/adapter/security/configuration/WebSecurityConfiguration.java)
 defines the full access matrix. See [ADR 0044](adr/0044-explicit-api-access-boundary.md) for the rationale.
 

@@ -24,3 +24,9 @@ This feature is customer-facing and synchronous like ADR 0020, but unlike the su
 - The showcase now demonstrates a seventh AI integration pattern: prompt-injected personalized reasoning over small structured business context, without adding RAG or tool-calling where they are not needed.
 - Recommendations remain best-effort. If AI is disabled or Ollama is unreachable, the endpoint still returns `200` with `assistantAvailable: false` and an empty recommendation list, so the storefront can degrade gracefully instead of surfacing a hard error.
 - Because review authorship is correlated through order-history names rather than a dedicated review e-mail field, the feature is only as precise as that display-name match. A future ADR could tighten this by introducing a first-class customer identifier shared by Orders and Reviews if the showcase ever wants stronger recommendation signals.
+
+## Update 2026-11-11: e-mail in the request body
+
+The endpoint is now `POST /api/recommendations` with the body `{"email": "..."}` and still requires `ORDER_READ`.
+A query parameter put the customer's e-mail into URLs, which Spring's debug request log, access logs and trace
+attributes record. A missing body or e-mail returns `400`. See `docs/operations.md`.

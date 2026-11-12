@@ -17,12 +17,15 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,6 +37,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class NotificationControllerTest {
 
     private static final String NOTIFICATIONS_ENDPOINT = "/api/notifications";
+
+    private static final String RECIPIENT_SEARCH_ENDPOINT = NOTIFICATIONS_ENDPOINT + "/recipient-search";
+
+    private static final String RECIPIENT_SEARCH_BODY = "{\"recipientEmail\":\"customer@example.com\"}";
 
     @Autowired
     private transient MockMvc mockMvc;
@@ -74,11 +81,22 @@ class NotificationControllerTest {
                 .willReturn(new PagedResult<>(List.of(notification), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(notificationWebMapper.mapToResource(notification)).willReturn(Optional.of(mockNotificationResource()));
 
-        mockMvc.perform(get(NOTIFICATIONS_ENDPOINT + "/recipient/" + NotificationBuilder.TEST_RECIPIENT_EMAIL))
+        mockMvc.perform(post(RECIPIENT_SEARCH_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(RECIPIENT_SEARCH_BODY))
                 .andExpect(status().isOk())
                 .andExpect(
                         jsonPath("$._embedded.notificationResourceList[0].recipientEmail")
-                                .value(NotificationBuilder.TEST_RECIPIENT_EMAIL));
+                                .value(NotificationBuilder.TEST_RECIPIENT_EMAIL))
+                .andExpect(jsonPath("$._links.self.href", endsWith(RECIPIENT_SEARCH_ENDPOINT + "?page=0&size=20")));
+    }
+
+    @Test
+    void shouldRejectRecipientSearchWithoutARecipient() throws Exception {
+
+        mockMvc.perform(post(RECIPIENT_SEARCH_ENDPOINT)).andExpect(status().isBadRequest());
+        final String blankRecipient = "{\"recipientEmail\":\" \"}";
+        mockMvc.perform(post(RECIPIENT_SEARCH_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(blankRecipient))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(listNotificationsInPort);
     }
 
     @Test

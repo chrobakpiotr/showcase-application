@@ -32,7 +32,7 @@ describe('RecommendationsService', () => {
     httpTestingController.verify();
   });
 
-  it('should GET recommendations with the email query parameter', () => {
+  it('should POST the email in the request body, not the URL', () => {
     const response = {
       assistantAvailable: true,
       recommendations: [
@@ -45,9 +45,11 @@ describe('RecommendationsService', () => {
       .subscribe((data) => expect(data).toEqual(response));
 
     const req = httpTestingController.expectOne(
-      `${environment.apiPrefix}/recommendations?email=john.doe@test.com`
+      `${environment.apiPrefix}/recommendations`
     );
-    expect(req.request.method).toBe('GET');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ email: 'john.doe@test.com' });
+    expect(req.request.urlWithParams).not.toContain('john.doe');
     req.flush(response);
   });
 });

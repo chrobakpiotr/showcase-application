@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.web.recommendation.mapper.RecommendationWebMapper;
+import com.cp.ecommerce.adapter.web.recommendation.resource.RecommendationQueryResource;
 import com.cp.ecommerce.domain.recommendation.ProductRecommendation;
 import com.cp.ecommerce.domain.recommendation.ProductRecommendations;
 import com.cp.ecommerce.domain.recommendation.RecommendationRequest;
@@ -30,7 +31,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -46,6 +47,8 @@ class RecommendationControllerTest {
     private static final String ENDPOINT = "/api/recommendations";
 
     private static final String CUSTOMER_EMAIL = "john.doe@test.com";
+
+    private static final String EMAIL_BODY = "{\"email\":\"john.doe@test.com\"}";
 
     @Autowired
     private transient MockMvc mockMvc;
@@ -92,7 +95,7 @@ class RecommendationControllerTest {
                                                         .build()))
                                 .build()));
 
-        mockMvc.perform(get(ENDPOINT).param("email", CUSTOMER_EMAIL))
+        mockMvc.perform(post(ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(EMAIL_BODY))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -103,7 +106,7 @@ class RecommendationControllerTest {
     @Test
     void shouldReturn400WhenEmailIsBlank() throws Exception {
 
-        mockMvc.perform(get(ENDPOINT).param("email", " "))
+        mockMvc.perform(post(ENDPOINT).contentType(MediaType.APPLICATION_JSON).content("{\"email\":\" \"}"))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
@@ -113,9 +116,9 @@ class RecommendationControllerTest {
     }
 
     @Test
-    void shouldReturn400WhenEmailParameterIsMissing() throws Exception {
+    void shouldReturn400WhenRequestBodyIsMissing() throws Exception {
 
-        mockMvc.perform(get(ENDPOINT)).andDo(print()).andExpect(status().isBadRequest());
+        mockMvc.perform(post(ENDPOINT)).andDo(print()).andExpect(status().isBadRequest());
 
         verify(recommendProductsInPort, never()).recommendProducts(any());
     }
@@ -146,8 +149,9 @@ class RecommendationControllerTest {
                 recommendProductsInPort,
                 recommendationWebMapper,
                 rateLimitedExecutor);
+        final RecommendationQueryResource query = new RecommendationQueryResource(CUSTOMER_EMAIL);
 
-        assertThatThrownBy(() -> controller.recommend(CUSTOMER_EMAIL)).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> controller.recommend(query)).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to map product recommendations to response");
     }
 
@@ -158,7 +162,7 @@ class RecommendationControllerTest {
                 .given(rateLimitedExecutor)
                 .callRateLimited(anyString(), any());
 
-        mockMvc.perform(get(ENDPOINT).param("email", CUSTOMER_EMAIL))
+        mockMvc.perform(post(ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(EMAIL_BODY))
                 .andDo(print())
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().longValue(HttpHeaders.RETRY_AFTER, 1))

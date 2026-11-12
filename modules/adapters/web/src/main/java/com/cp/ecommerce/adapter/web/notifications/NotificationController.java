@@ -5,6 +5,7 @@ import java.util.function.IntFunction;
 
 import com.cp.ecommerce.adapter.web.notifications.mapper.NotificationWebMapper;
 import com.cp.ecommerce.adapter.web.notifications.resource.NotificationResource;
+import com.cp.ecommerce.adapter.web.notifications.resource.RecipientSearchResource;
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationStatus;
 import com.cp.ecommerce.domain.notification.PageQuery;
@@ -22,6 +23,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -68,20 +71,26 @@ public class NotificationController {
                 target -> linkTo(methodOn(NotificationController.class).listNotifications(target, size)).withSelfRel());
     }
 
-    @GetMapping("/recipient/{recipientEmail}")
-    @Operation(summary = "List notifications for a recipient", description = "Newest first, page by page.")
+    @PostMapping("/recipient-search")
+    @Operation(
+            summary = "List notifications for a recipient",
+            description = "Newest first, page by page. The recipient e-mail travels in the request body so that it stays out "
+                    + "of URLs, access logs and traces.")
     public PagedModel<EntityModel<NotificationResource>> listNotificationsForRecipient(
-            @PathVariable("recipientEmail") final String recipientEmail,
+            @RequestBody(required = false) final RecipientSearchResource search,
             @RequestParam(name = "page", defaultValue = "0") final int page,
             @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
         validatePage(page, size);
+        final String recipientEmail = search == null ? null : search.recipientEmail();
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "recipientEmail is required");
+        }
         final PagedResult<Notification> result = listNotificationsInPort
                 .listNotificationsForRecipient(recipientEmail, new PageQuery(page, size));
         return toPagedModel(
                 result,
                 page,
-                target -> linkTo(
-                        methodOn(NotificationController.class).listNotificationsForRecipient(recipientEmail, target, size))
+                target -> linkTo(methodOn(NotificationController.class).listNotificationsForRecipient(null, target, size))
                         .withSelfRel());
     }
 

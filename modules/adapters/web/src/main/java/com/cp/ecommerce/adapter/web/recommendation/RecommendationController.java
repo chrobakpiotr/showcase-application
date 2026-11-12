@@ -3,15 +3,16 @@ package com.cp.ecommerce.adapter.web.recommendation;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.web.recommendation.mapper.RecommendationWebMapper;
 import com.cp.ecommerce.adapter.web.recommendation.resource.ProductRecommendationsResource;
+import com.cp.ecommerce.adapter.web.recommendation.resource.RecommendationQueryResource;
 import com.cp.ecommerce.domain.recommendation.RecommendationRequest;
 import com.cp.ecommerce.domain.recommendation.port.incoming.RecommendProductsInPort;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -43,10 +44,11 @@ public class RecommendationController {
 
     private final RateLimitedExecutor rateLimitedExecutor;
 
-    @GetMapping
+    @PostMapping
     @Operation(
             summary = "Get personalized product recommendations",
-            description = "Generates a short list of catalog recommendations for a customer e-mail by combining existing order "
+            description = "Generates a short list of catalog recommendations for the customer e-mail in the request body (kept "
+                    + "out of the URL so it does not reach access logs or traces) by combining existing order "
                     + "history, review history and active catalog candidates. Returns an empty list with assistantAvailable=false "
                     + "when the AI feature is disabled or unavailable.")
     @ApiResponse(
@@ -65,8 +67,9 @@ public class RecommendationController {
             content = @Content(
                     mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
-    public ProductRecommendationsResource recommend(@RequestParam("email") final String email) {
+    public ProductRecommendationsResource recommend(@RequestBody(required = false) final RecommendationQueryResource query) {
 
+        final String email = query == null ? null : query.email();
         if (email == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is missing");
         }
