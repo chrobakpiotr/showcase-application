@@ -20,8 +20,9 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
   email addresses replaced by `[email]`, and lose their stack trace when any cause names an email address. Mail
   template failures name the model type, not the model, because the model holds customer data. PDF generation
   failures name the rendered template's size, not its content. A successful mail send logs only the dispatch id,
-  not the recipients. The Ollama adapters log only the cause class names on fallback, because model client
-  messages can echo prompt text such as customer remarks or questions.
+  not the recipients. All six Ollama adapters log only the cause class names on fallback, because model
+  client messages can echo prompt text such as customer remarks or questions; an unrecognised model value is logged
+  by its length.
 - Redaction masks email addresses only. Names, phone numbers and street addresses are not pattern-matched, so new
   code must not put domain objects or customer fields into log lines or exception messages.
 

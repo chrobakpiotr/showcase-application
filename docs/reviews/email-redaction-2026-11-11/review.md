@@ -75,7 +75,7 @@ Verified by: STATIC only. Falsification coverage: sensitive-data exposure tested
   the template text is absent.
 - Finding 2 (email-only redaction): kept as the documented scope in `docs/operations.md`; new code must not put
   customer fields into log lines or exception messages. No pattern-based masking of names, phones or addresses.
-- Finding 3 (AI adapters): fixed in `2fa7784`; the four Ollama adapters log only cause class names and no stack
+- Finding 3 (AI adapters): fixed in `2fa7784` and `475c3a3`; all six Ollama adapters log only cause class names and no stack
   trace, and the language detector logs the length of an unrecognised model value. Each fallback test captures the
   log line and checks that the address and prompt text are absent. Health-indicator and wishlist logs are unchanged
   (no customer data).
