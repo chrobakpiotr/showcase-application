@@ -1,0 +1,65 @@
+name: Frontend lockfile refresh
+
+# Manual helper for agents without npm registry access. It applies optional "overrides" changes to the frontend
+# package.json on a runner, resolves package-lock.json without running install scripts, and prints both diffs to the
+# log. Nothing is pushed: a maintainer or agent copies the reviewed change into a normal commit, and CI then checks it
+# with npm ci, npm audit, lint and the tests.
+on:
+  workflow_dispatch:
+    inputs:
+      overrides:
+        description: 'JSON object of package.json "overrides" entries to set; a null value removes an entry'
+        required: false
+        default: '{}'
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    name: Resolve the frontend lockfile
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/ecommerce/frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Apply the requested overrides
+        env:
+          OVERRIDES: ${{ inputs.overrides }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const changes = JSON.parse(process.env.OVERRIDES || "{}");
+            if (changes === null || typeof changes !== "object" || Array.isArray(changes)) {
+              throw new Error("overrides must be a JSON object");
+            }
+            const manifest = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            manifest.overrides = manifest.overrides || {};
+            for (const [name, value] of Object.entries(changes)) {
+              if (value === null) {
+                delete manifest.overrides[name];
+              } else {
+                manifest.overrides[name] = value;
+              }
+            }
+            fs.writeFileSync("package.json", JSON.stringify(manifest, null, 2) + "\n");
+          '
+
+      - name: Resolve the lockfile without install scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Print the change
+        run: |
+          git diff --stat -- package.json package-lock.json
+          git diff -- package.json package-lock.json
