@@ -12,6 +12,7 @@ import com.cp.ecommerce.foundation.exception.CouponAlreadyExistsException;
 import com.cp.ecommerce.foundation.exception.CouponConflictException;
 import com.cp.ecommerce.foundation.exception.CouponNotApplicableException;
 import com.cp.ecommerce.foundation.exception.DomainObjectValidationException;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 import com.cp.ecommerce.foundation.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 import com.cp.ecommerce.foundation.exception.OrderNotCancellableException;
@@ -265,7 +266,20 @@ public class GlobalExceptionHandler extends ReturnAndShipmentExceptionHandlerSup
     @ExceptionHandler({ HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class })
     public ProblemDetail malformedRequest(final RuntimeException exception) {
 
-        return problemDetail(exception, BAD_REQUEST, TYPE_MALFORMED_REQUEST, "Bad Request", "Malformed request");
+        // Parser messages quote fragments of the request, so the log names only the cause classes.
+        final UnreadableRequest unreadable = new UnreadableRequest(FailureMessages.causeNames(exception));
+        return problemDetail(unreadable, BAD_REQUEST, TYPE_MALFORMED_REQUEST, "Bad Request", "Malformed request");
+    }
+
+    /** Stands in for an unreadable-request exception in the error log, carrying only its cause class names. */
+    static final class UnreadableRequest extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        UnreadableRequest(final String causeNames) {
+
+            super(causeNames, null, false, false);
+        }
     }
 
     /** Unmapped failures are 500s; a client-data unique-key violation anywhere in the cause chain is a 409 conflict. */

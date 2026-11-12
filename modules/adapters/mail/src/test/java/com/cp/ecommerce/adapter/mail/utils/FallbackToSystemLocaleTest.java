@@ -40,4 +40,10 @@ class FallbackToSystemLocaleTest {
         assertThat(result).isEqualTo("Pozdrawiamy");
     }
 
+    @Test
+    void shouldReadPolishLettersFromTheUtf8Bundle() {
+
+        final String result = messageSource.getMessage("mail.thanks", new Object[] {}, Locale.of("pl"));
+        assertThat(result).isEqualTo("Dziękujemy za Twoje zamówienie");
+    }
 }

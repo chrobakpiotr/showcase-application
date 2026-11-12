@@ -38,6 +38,8 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
 - Mail and PDF templates HTML/XML-escape every value, including customer names, contact data and remarks, so
   markup in customer text is printed as text and cannot break or alter the document. Characters XML forbids, such
   as control characters, are removed from customer text before rendering, because escaping cannot represent them.
+- An unreadable request body or parameter is logged by its cause class names only, because parser messages quote
+  fragments of the request.
 - New code must not put customer fields into log lines or exception messages; masking is a backstop, not the control.
 
 A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Alloy, with pre-provisioned datasources
