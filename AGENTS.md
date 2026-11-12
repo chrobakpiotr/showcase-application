@@ -127,14 +127,6 @@ Prefer measured simplification/improvement using `python3 tooling/agent-harness/
   historical exceptions and their reasons in `tooling/quality/evidence-checksum-baseline.json`. Digests written in prose
   are not checked by it. Third-party tool output kept as evidence is also left as recorded.
 
-## Banjo Sniffs
-
-Banjo Sniffs is the owner's proprietary set of engineering workflows. This repository is public. Keep its `SKILL.md`,
-references, templates and excerpts out of this repository, including an installed copy under `.claude/skills/`
-(ignored in `.gitignore`). Reports and handovers written with it are outputs and may be committed when they do not
-quote its instructions. Record all suggestions and corrections for the skill only in the private Agent Harness
-[feedback.md](https://github.com/chrobakpiotr/agent-harness/blob/main/docs/specs/banjo-sniffs/feedback.md).
-
 ## Model and reasoning routing (owner rule, 2026-11-02)
 
 - Give every delegate an explicit tier (small, standard, frontier) and effort (low, medium, high, max): small / low
