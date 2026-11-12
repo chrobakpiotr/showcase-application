@@ -18,7 +18,12 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
   last-error fields therefore describe a database failure by its SQLState and cause class names only, through
   `FailureMessages` in the foundation module; its stack trace is not logged. Other failures keep their message with
   email addresses replaced by `[email]`, and lose their stack trace when any cause names an email address. Mail
-  template failures name the model type, not the model, because the model holds customer data.
+  template failures name the model type, not the model, because the model holds customer data. PDF generation
+  failures name the rendered template's size, not its content. A successful mail send logs only the dispatch id,
+  not the recipients. The Ollama adapters log only the cause class names on fallback, because model client
+  messages can echo prompt text such as customer remarks or questions.
+- Redaction masks email addresses only. Names, phone numbers and street addresses are not pattern-matched, so new
+  code must not put domain objects or customer fields into log lines or exception messages.
 
 A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Alloy, with pre-provisioned datasources
 and an "Showcase application - Overview" dashboard) is provided under `/infra/docker/observability`:
