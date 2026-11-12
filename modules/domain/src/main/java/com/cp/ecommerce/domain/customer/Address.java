@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -19,13 +20,16 @@ public class Address extends ValidDomainObject<Address> {
 
     @NotBlank(message = ValidationConstants.INVALID_STREET)
     @Size(max = ValidationConstants.ADDRESS_STREET_MAX, message = ValidationConstants.INVALID_STREET)
+    @ToString.Exclude
     String street;
 
     @Size(max = ValidationConstants.ADDRESS_POSTAL_CODE_MAX, message = ValidationConstants.INVALID_POSTAL_CODE)
+    @ToString.Exclude
     String postalCode;
 
     @NotBlank(message = ValidationConstants.INVALID_CITY)
     @Size(max = ValidationConstants.ADDRESS_CITY_MAX, message = ValidationConstants.INVALID_CITY)
+    @ToString.Exclude
     String city;
 
     @NotBlank(message = ValidationConstants.INVALID_COUNTRY_CODE)

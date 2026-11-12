@@ -15,4 +15,10 @@ import lombok.Builder;
 public record SupportQuestionResource(@Schema(example = "Can I still cancel my order after placing it?") String question,
         @Schema(example = "a343b57f-f1b0-46c4-846c-f8ee538f30f0") String conversationId) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "SupportQuestionResource[personal data omitted]";
+    }
 }

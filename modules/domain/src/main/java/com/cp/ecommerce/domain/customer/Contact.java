@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -23,14 +24,17 @@ public class Contact extends ValidDomainObject<Contact> {
     private static final String PHONE_PATTERN = "^$|[- +()0-9]+";
 
     @Size(max = ValidationConstants.CONTACT_NAME_MAX, message = ValidationConstants.INVALID_FULL_NAME)
+    @ToString.Exclude
     String fullName;
 
     @Email(message = ValidationConstants.INVALID_EMAIL)
     @Size(max = ValidationConstants.CONTACT_EMAIL_MAX, message = ValidationConstants.INVALID_EMAIL)
+    @ToString.Exclude
     String email;
 
     @Pattern(regexp = PHONE_PATTERN, message = ValidationConstants.INVALID_PHONE)
     @Size(max = ValidationConstants.CONTACT_PHONE_MAX, message = ValidationConstants.INVALID_PHONE)
+    @ToString.Exclude
     String phone;
 
     public static Contact.ContactBuilder builder() {

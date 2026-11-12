@@ -118,12 +118,15 @@ class OrderRemarksClassifierAdapterTest {
 
         when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
             final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
-            return fallback.apply(new IllegalStateException("circuit open"));
+            return fallback.apply(new IllegalStateException("prompt echo: jan@example.com"));
         });
         final Order order = mockOrder();
         final OrderRemarksClassifierAdapter adapter = newAdapter();
 
-        assertThatThrownBy(() -> adapter.classify(order)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> adapter.classify(order)).isInstanceOf(IllegalStateException.class)
+                .hasNoCause()
+                .hasMessageEndingWith(" (causes=IllegalStateException)")
+                .hasMessageNotContaining("jan@example.com");
     }
 
     private OrderRemarksClassifierAdapter newAdapter() {

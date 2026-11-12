@@ -1,6 +1,7 @@
 package com.cp.ecommerce.domain.recommendation;
 
 import lombok.Builder;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -14,6 +15,7 @@ public class CustomerReviewProfile {
 
     int rating;
 
+    @ToString.Exclude
     String comment;
 
 }

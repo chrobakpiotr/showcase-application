@@ -12,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -31,6 +32,7 @@ public class Notification extends ValidDomainObject<Notification> {
     @NotBlank(message = ValidationConstants.INVALID_NOTIFICATION_RECIPIENT_EMAIL)
     @Email(message = ValidationConstants.INVALID_NOTIFICATION_RECIPIENT_EMAIL)
     @Size(max = ValidationConstants.CONTACT_EMAIL_MAX, message = ValidationConstants.INVALID_NOTIFICATION_RECIPIENT_EMAIL)
+    @ToString.Exclude
     String recipientEmail;
 
     @NotNull(message = ValidationConstants.INVALID_NOTIFICATION_CHANNEL)

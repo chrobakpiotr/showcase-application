@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -23,6 +24,7 @@ public class SupportQuestion extends ValidDomainObject<SupportQuestion> {
 
     @NotBlank(message = ValidationConstants.INVALID_SUPPORT_QUESTION)
     @Size(max = ValidationConstants.SUPPORT_QUESTION_MAX, message = ValidationConstants.INVALID_SUPPORT_QUESTION)
+    @ToString.Exclude
     String question;
 
     public static SupportQuestion.SupportQuestionBuilder builder() {

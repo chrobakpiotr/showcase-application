@@ -40,8 +40,58 @@ class FailureMessagesTest {
 
         assertThat(FailureMessages.describe(exception)).isEqualTo("mail to <[email]> failed");
         assertThat(FailureMessages.loggableCause(exception)).isNull();
-        assertThat(FailureMessages.redactEmails(null)).isNull();
-        assertThat(FailureMessages.redactEmails("user@localhost stays")).isEqualTo("user@localhost stays");
+        assertThat(FailureMessages.redact(null)).isNull();
+    }
+
+    @Test
+    void shouldReplaceUnusualAndMalformedEmailAddresses() {
+
+        assertThat(FailureMessages.redact("to user@localhost")).isEqualTo("to [email]");
+        assertThat(FailureMessages.redact("to j\u00fcrgen@m\u00fcnchen.de")).isEqualTo("to [email]");
+        assertThat(FailureMessages.redact("to o'brien@example.com.")).isEqualTo("to [email]");
+        assertThat(FailureMessages.redact("to \"jane doe\"@example.com")).isEqualTo("to [email]");
+        assertThat(FailureMessages.redact("Illegal address ``a@@b''")).isEqualTo("Illegal address ``[email]");
+        assertThat(FailureMessages.redact("Key (email)=(buyer@example.com)")).isEqualTo("Key (email)=([email])");
+        assertThat(FailureMessages.redact("email=buyer@example.com")).isEqualTo("email=[email]");
+    }
+
+    @Test
+    void shouldKeepAnnotationsAndQuotedTextWithoutAnAddress() {
+
+        assertThat(FailureMessages.redact("annotated with @Scheduled")).isEqualTo("annotated with @Scheduled");
+        assertThat(FailureMessages.redact("template \"default\" failed")).isEqualTo("template \"default\" failed");
+    }
+
+    @Test
+    void shouldReplacePhoneNumbers() {
+
+        assertThat(FailureMessages.redact("call +48 123 456 789 now")).isEqualTo("call [phone] now");
+        assertThat(FailureMessages.redact("call (+48) 600-700-800.")).isEqualTo("call [phone].");
+        assertThat(FailureMessages.redact("call 600700800")).isEqualTo("call [phone]");
+        assertThat(FailureMessages.redact("phones 555 555 555 (home)")).isEqualTo("phones [phone] (home)");
+        assertThat(FailureMessages.redact("call 600700800!")).isEqualTo("call [phone]!");
+        assertThat(FailureMessages.redact("call 600700800- now")).isEqualTo("call [phone]- now");
+    }
+
+    @Test
+    void shouldKeepNumbersThatAreNotPhoneNumbers() {
+
+        final String identifiers = "order f47ac10b-58cc-4372-a567-0e02b2c3d479-42, span 0123456789abcdef, 2026-11-11T10:00Z";
+        assertThat(FailureMessages.redact(identifiers)).isEqualTo(identifiers);
+        final String locations = "queue arn:aws:sqs:eu-central-1:123456789012:audit and /123456789012/audit, ( ";
+        assertThat(FailureMessages.redact(locations)).isEqualTo(locations);
+        final String numbers = "attempt 3 of 12345678, total 1234567890.50, 1234567890,5, 12345678901234567, 600700800-x";
+        assertThat(FailureMessages.redact(numbers)).isEqualTo(numbers);
+        assertThat(FailureMessages.redact("time 600700800:00")).isEqualTo("time 600700800:00");
+        assertThat(FailureMessages.redact("id 600700800_a and 600700800/b")).isEqualTo("id 600700800_a and 600700800/b");
+    }
+
+    @Test
+    void shouldDropTheStackTraceWhenAnyCauseNamesAPhoneNumber() {
+
+        final RuntimeException cause = new RuntimeException("courier rejected +48 600 700 800");
+
+        assertThat(FailureMessages.loggableCause(new IllegalStateException("shipment failed", cause))).isNull();
     }
 
     @Test
@@ -57,9 +107,10 @@ class FailureMessagesTest {
     @Test
     void shouldScanLongMessagesInLinearTime() {
 
-        final String hostile = "a".repeat(200_000) + "@" + "b".repeat(200_000);
+        final String hostile = "a".repeat(200_000) + "@" + "b.".repeat(100_000) + "@".repeat(100_000) + "\"".repeat(100_000)
+                + "1 ".repeat(100_000) + "a1".repeat(100_000) + "-1".repeat(100_000);
 
-        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> FailureMessages.redactEmails(hostile));
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> FailureMessages.redact(hostile));
     }
 
     @Test

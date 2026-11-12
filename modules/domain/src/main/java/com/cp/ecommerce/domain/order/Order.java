@@ -16,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -28,6 +29,7 @@ import lombok.Value;
 public class Order extends ValidDomainObject<Order> {
 
     @Size(max = ValidationConstants.ORDER_REMARKS_MAX, message = ValidationConstants.INVALID_REMARKS)
+    @ToString.Exclude
     String remarks;
 
     String orderNumber;

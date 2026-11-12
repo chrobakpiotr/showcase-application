@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -38,6 +39,7 @@ public class Review extends ValidDomainObject<Review> {
 
     @NotBlank(message = ValidationConstants.INVALID_REVIEW_AUTHOR_NAME)
     @Size(max = ValidationConstants.REVIEW_AUTHOR_NAME_MAX, message = ValidationConstants.INVALID_REVIEW_AUTHOR_NAME)
+    @ToString.Exclude
     String authorName;
 
     @Min(value = 1, message = ValidationConstants.INVALID_REVIEW_RATING)
@@ -46,6 +48,7 @@ public class Review extends ValidDomainObject<Review> {
 
     @NotBlank(message = ValidationConstants.INVALID_REVIEW_COMMENT)
     @Size(max = ValidationConstants.REVIEW_COMMENT_MAX, message = ValidationConstants.INVALID_REVIEW_COMMENT)
+    @ToString.Exclude
     String comment;
 
     @NotNull(message = ValidationConstants.INVALID_REVIEW_STATUS)

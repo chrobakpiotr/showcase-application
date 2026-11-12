@@ -11,4 +11,10 @@ public record SubmitReviewResource(@Schema(example = "SKU-3f2504e0-4f89-11d3-9a0
         @Schema(example = "Jane Smith") String authorName, @Schema(example = "5") Integer rating,
         @Schema(example = "Works great, very happy with it.") String comment) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "SubmitReviewResource[personal data omitted]";
+    }
 }

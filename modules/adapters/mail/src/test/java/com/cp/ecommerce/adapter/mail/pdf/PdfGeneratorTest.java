@@ -6,8 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import javax.xml.transform.TransformerException;
-
 import com.cp.ecommerce.adapter.mail.pdf.utils.ClasspathResourceResolver;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
@@ -64,8 +62,8 @@ public class PdfGeneratorTest {
         when(fopConfigXml.getInputStream()).thenReturn(new ByteArrayInputStream(FOP_XML.getBytes(StandardCharsets.UTF_8)));
         assertThatThrownBy(() -> new PdfGenerator(fopConfigXml, resourceResolver).generatePdf("badly-formed-template"))
                 .isInstanceOf(TechnicalProblemException.class)
-                .hasCauseInstanceOf(TransformerException.class)
-                .hasMessage("Error generating the PDF from a rendered template of 21 characters")
+                .hasNoCause()
+                .hasMessageStartingWith("Error generating the PDF from a rendered template of 21 characters (causes=")
                 .message()
                 .doesNotContain("badly-formed-template");
     }

@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -23,6 +24,7 @@ public class RecommendationRequest extends ValidDomainObject<RecommendationReque
     @NotBlank(message = ValidationConstants.INVALID_EMAIL)
     @Email(message = ValidationConstants.INVALID_EMAIL)
     @Size(max = ValidationConstants.CONTACT_EMAIL_MAX, message = ValidationConstants.INVALID_EMAIL)
+    @ToString.Exclude
     String customerEmail;
 
     public static RecommendationRequest.RecommendationRequestBuilder builder() {

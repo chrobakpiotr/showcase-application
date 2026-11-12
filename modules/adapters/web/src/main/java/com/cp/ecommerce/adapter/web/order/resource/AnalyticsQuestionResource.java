@@ -15,4 +15,10 @@ public record AnalyticsQuestionResource(
         @Schema(example = "How many orders were placed between 2024-01-01 and 2024-01-31?") String question,
         @Schema(example = "a343b57f-f1b0-46c4-846c-f8ee538f30f0") String conversationId) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "AnalyticsQuestionResource[personal data omitted]";
+    }
 }

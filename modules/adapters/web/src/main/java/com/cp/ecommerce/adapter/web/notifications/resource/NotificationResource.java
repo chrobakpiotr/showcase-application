@@ -15,4 +15,10 @@ public record NotificationResource(@Schema(example = "NOTIF-3f2504e0-4f89-11d3-9
         @Schema(example = "Your order ORD-20240907-0001 was confirmed.") String body, @Schema(example = "SENT") String status,
         Instant createdDate, Instant sentDate) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "NotificationResource[personal data omitted]";
+    }
 }

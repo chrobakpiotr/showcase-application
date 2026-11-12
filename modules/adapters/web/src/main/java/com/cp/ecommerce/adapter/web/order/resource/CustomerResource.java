@@ -12,4 +12,10 @@ public record CustomerResource(@Schema(example = "Jane Doe") String fullName,
         @Schema(example = "Main Street 1") String street, @Schema(example = "12-345") String postalCode,
         @Schema(example = "Warsaw") String city, @Schema(example = "PL") String countryCode) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "CustomerResource[personal data omitted]";
+    }
 }

@@ -65,7 +65,9 @@ public class FreeMarkerTemplateProcessorTest {
 
         assertThatThrownBy(() -> createTemplateProcessor().processTemplate(templateName, TEMPLATE_PATH, model))
                 .isInstanceOf(TechnicalProblemException.class)
-                .hasMessageContaining(String.format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName));
+                .hasNoCause()
+                .hasMessageContaining(String.format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName))
+                .hasMessageEndingWith(" (causes=TemplateException)");
     }
 
     @Test

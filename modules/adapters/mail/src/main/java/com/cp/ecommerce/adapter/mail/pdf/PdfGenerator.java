@@ -11,6 +11,7 @@ import javax.xml.transform.sax.SAXResult;
 import javax.xml.transform.stream.StreamSource;
 
 import com.cp.ecommerce.adapter.mail.pdf.utils.ClasspathResourceResolver;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -38,7 +39,7 @@ import static org.apache.xmlgraphics.util.MimeConstants.MIME_PDF;
 @RequiredArgsConstructor
 public class PdfGenerator {
 
-    static final String GENERATION_ERROR = "Error generating the PDF from a rendered template of %d characters";
+    static final String GENERATION_ERROR = "Error generating the PDF from a rendered template of %d characters (causes=%s)";
 
     private final transient TransformerFactory transformerFactory;
 
@@ -81,8 +82,10 @@ public class PdfGenerator {
                                 new SAXResult(getFop(bos).getDefaultHandler()));
                 return bos.toByteArray();
             } catch (final IOException | FOPException | TransformerException ex) {
-                // The rendered template holds customer data, so the message names only its size.
-                throw new TechnicalProblemException(GENERATION_ERROR.formatted(templateContent.length()), ex);
+                // The rendered template holds customer data, and FOP messages can quote it, so the failure names only the
+                // template's size and the cause classes and does not keep the cause.
+                throw new TechnicalProblemException(
+                        GENERATION_ERROR.formatted(templateContent.length(), FailureMessages.causeNames(ex)));
             }
         }
         log.error("Template content is null or empty - cannot proceed with PDF generation");

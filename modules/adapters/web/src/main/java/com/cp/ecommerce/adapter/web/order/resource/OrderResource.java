@@ -17,4 +17,10 @@ public record OrderResource(@Schema(example = "Please leave the package with the
         List<OrderLineItemResource> items, @Schema(example = "CARD") PaymentMethod paymentMethod,
         @Schema(example = "SAVE10") String couponCode) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "OrderResource[personal data omitted]";
+    }
 }

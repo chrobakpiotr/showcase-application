@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -23,6 +24,7 @@ public class AnalyticsQuestion extends ValidDomainObject<AnalyticsQuestion> {
 
     @NotBlank(message = ValidationConstants.INVALID_ANALYTICS_QUESTION)
     @Size(max = ValidationConstants.ANALYTICS_QUESTION_MAX, message = ValidationConstants.INVALID_ANALYTICS_QUESTION)
+    @ToString.Exclude
     String question;
 
     public static AnalyticsQuestion.AnalyticsQuestionBuilder builder() {

@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -47,6 +48,7 @@ public class ReturnRequest extends ValidDomainObject<ReturnRequest> {
 
     @NotBlank(message = ValidationConstants.INVALID_RETURN_REASON)
     @Size(max = ValidationConstants.RETURN_REASON_MAX, message = ValidationConstants.INVALID_RETURN_REASON)
+    @ToString.Exclude
     String reason;
 
     @NotNull(message = ValidationConstants.INVALID_RETURN_STATUS)

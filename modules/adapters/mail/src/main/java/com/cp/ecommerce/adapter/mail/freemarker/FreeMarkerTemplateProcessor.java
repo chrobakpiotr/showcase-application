@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -59,7 +60,10 @@ public class FreeMarkerTemplateProcessor {
                         objectWrapperFactory.createWrapper(model),
                         new EnvironmentConfigurer().getConfigurer());
             } catch (final TemplateException | IOException | RuntimeException ex) { // SUPPRESS CHECKSTYLE IllegalCatch
-                throw new TechnicalProblemException(format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName), ex);
+                // Template errors can quote model values, so only the cause classes are kept, not the cause.
+                final String causes = FailureMessages.causeNames(ex);
+                throw new TechnicalProblemException(
+                        format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName) + " (causes=" + causes + ")");
             }
         }
         return null;

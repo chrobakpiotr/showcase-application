@@ -8,6 +8,7 @@ import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.RemarksTriageCategory;
 import com.cp.ecommerce.domain.order.RemarksTriageResult;
 import com.cp.ecommerce.domain.order.port.outgoing.ClassifyOrderRemarksOutPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -66,9 +67,10 @@ public class OrderRemarksClassifierAdapter implements ClassifyOrderRemarksOutPor
         }
 
         return resilientExecutor.callResilientOrElse(RESILIENCE_INSTANCE_NAME, () -> classifyWithModel(remarks), exception -> {
+            // Model client messages can echo the remarks, so the cause is named, not kept.
+            final String causes = FailureMessages.causeNames(exception);
             throw new IllegalStateException(
-                    "Could not classify remarks via Ollama for order: " + order.getOrderNumber(),
-                    exception);
+                    "Could not classify remarks via Ollama for order: " + order.getOrderNumber() + " (causes=" + causes + ")");
         });
     }
 

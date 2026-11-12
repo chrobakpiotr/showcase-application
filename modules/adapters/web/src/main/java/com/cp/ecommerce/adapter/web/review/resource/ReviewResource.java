@@ -15,4 +15,10 @@ public record ReviewResource(@Schema(example = "REVIEW-3f2504e0-4f89-11d3-9a0c-0
         @Schema(example = "Works great, very happy with it.") String comment, @Schema(example = "APPROVED") String status,
         Instant created) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "ReviewResource[personal data omitted]";
+    }
 }
