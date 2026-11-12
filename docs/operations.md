@@ -17,14 +17,17 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
 - Database messages echo rejected values, such as a customer email in a unique-key violation. Error logs and stored
   last-error fields therefore describe a database failure by its SQLState and cause class names only, through
   `FailureMessages` in the foundation module; its stack trace is not logged. Other failures keep their message with
-  email addresses replaced by `[email]`, and lose their stack trace when any cause names an email address. Mail
-  template failures name the model type, not the model, because the model holds customer data. PDF generation
-  failures name the rendered template's size, not its content. A successful mail send logs only the dispatch id,
-  not the recipients. All six Ollama adapters log only the cause class names on fallback, because model
-  client messages can echo prompt text such as customer remarks or questions; an unrecognised model value is logged
-  by its length.
-- Redaction masks email addresses only. Names, phone numbers and street addresses are not pattern-matched, so new
-  code must not put domain objects or customer fields into log lines or exception messages.
+  email addresses replaced by `[email]` and phone numbers by `[phone]`, and lose their stack trace when any cause
+  message holds either. Any token with text before an `@` counts as an address, so quoted, non-ASCII and malformed
+  addresses are masked too. A phone number is a run of 9 to 15 digits, optionally with `+`, spaces, dashes or
+  parentheses, that is not part of an identifier, time, path or decimal number.
+- Names, street addresses and free text such as order remarks cannot be recognised by pattern, so they are kept out
+  structurally. Domain objects leave personal fields out of `toString()`, and web request and response records with
+  personal data print only their type, because Spring logs bodies at debug level. Mail template, PDF and remarks
+  classification failures name the cause classes and do not keep third-party causes, whose messages can quote the
+  rendered document or the prompt. A successful mail send logs only the dispatch id, not the recipients. All six
+  Ollama adapters log only the cause class names on fallback, and an unrecognised model value by its length.
+- New code must not put customer fields into log lines or exception messages; masking is a backstop, not the control.
 
 A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Alloy, with pre-provisioned datasources
 and an "Showcase application - Overview" dashboard) is provided under `/infra/docker/observability`:

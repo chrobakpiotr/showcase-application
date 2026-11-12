@@ -73,8 +73,8 @@ Verified by: STATIC only. Falsification coverage: sensitive-data exposure tested
   vulnerabilities in every project. See `docs/security/vulnerability-exceptions.md`.
 - Finding 1 (PdfGenerator): fixed in `2fa7784`; the message names the rendered template's size, and the test checks
   the template text is absent.
-- Finding 2 (email-only redaction): kept as the documented scope in `docs/operations.md`; new code must not put
-  customer fields into log lines or exception messages. No pattern-based masking of names, phones or addresses.
+- Finding 2 (email-only redaction): `76f174e` adds phone masking. Names and addresses stay unmatched by pattern;
+  domain objects and web records leave them out of `toString()` instead (see `docs/operations.md`).
 - Finding 3 (AI adapters): fixed in `2fa7784` and `475c3a3`; all six Ollama adapters log only cause class names and no stack
   trace, and the language detector logs the length of an unrecognised model value. Each fallback test captures the
   log line and checks that the address and prompt text are absent. Health-indicator and wishlist logs are unchanged
@@ -82,9 +82,9 @@ Verified by: STATIC only. Falsification coverage: sensitive-data exposure tested
 - Finding 4 (SendEmailAdapter INFO log): fixed in `2fa7784`; the send log carries only the dispatch id. The adapter
   no longer reads recipients after a send, which also removes a post-send failure that could cause a duplicate
   delivery on retry.
-- Finding 5 (regex gaps): accepted as Low. Quoted, non-ASCII and malformed addresses can leak in part; the policy
-  above makes masking a backstop, not the control.
+- Finding 5 (regex gaps): fixed in `76f174e`; any token with text before `@` is masked, including quoted, non-ASCII
+  and malformed addresses.
 - Finding 7 (cause messages): unchanged by design; cause messages are not logged when any names an email address.
-- Finding 8 (Lombok `toString()`): accepted as a latent hazard; covered by the policy line in `docs/operations.md`.
+- Finding 8 (Lombok `toString()`): fixed in `76f174e`; personal fields are excluded and tested.
 - Tests: `b20a0e1` adds non-database email cases at the saga compensation, refund-continuation and Kafka metrics
   call sites, alongside the existing database cases.

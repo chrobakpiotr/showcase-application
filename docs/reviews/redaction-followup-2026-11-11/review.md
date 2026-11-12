@@ -70,8 +70,9 @@ passed, but its log was not readable by the reviewer, so the bundled DOMPurify v
 - F1, F2, F3: fixed in `475c3a3`. The recommendation and duplicate-order fallbacks log only cause class names (the
   duplicate check keeps the order number); the classifier logs the category's length. Each has a LogCapture test that
   checks the address or remarks and the stack trace are absent, and a null-category test covers the length branch.
-- F4, F5: accepted as Low; no log path exposes them today.
+- F4, F5: fixed in `76f174e`; the classifier, PDF generator and FreeMarker processor no longer keep the third-party
+  cause and name the cause classes in the message instead.
 - F6: `docs/operations.md` now matches the code: all six Ollama adapters log only cause class names.
-- F7, F8: accepted; email-only masking is the documented scope.
+- F7: accepted; class names only. F8: `76f174e` masks malformed addresses, so `AddressException` text is covered.
 - Probe CI run 43141965027 on `9433a9f` passed every job, including backend, end-to-end and OWASP. The OWASP log,
   read by the implementer, shows "Found 0 vulnerabilities" for every project, including `web` and `ecommerce`.
