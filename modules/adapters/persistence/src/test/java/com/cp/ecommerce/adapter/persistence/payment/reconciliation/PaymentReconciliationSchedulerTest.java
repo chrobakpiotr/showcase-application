@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentReconciliationEntity;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentReconciliationEntityRepository;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentRefundEntity;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -303,6 +305,23 @@ class PaymentReconciliationSchedulerTest {
 
         verify(completeRefundReturnContinuationInPort).complete(RETURN_FAIL);
         verify(refundReturnContinuationOutPort).recordFailure(RETURN_FAIL, DATABASE_FAILURE);
+    }
+
+    @Test
+    void shouldRedactEmailWhenContinuationFailsOutsideTheDatabase() {
+        given(arbitrator.findDueOperationIds(50)).willReturn(List.of());
+        given(refundReturnContinuationOutPort.findRecoverableReturnNumbers(50)).willReturn(List.of(RETURN_FAIL));
+        org.mockito.BDDMockito.willThrow(new IllegalStateException("refund rejected for buyer@example.com"))
+                .given(completeRefundReturnContinuationInPort)
+                .complete(RETURN_FAIL);
+
+        try (LogCapture logs = new LogCapture(PaymentReconciliationScheduler.class)) {
+            scheduler().reconcileDueOperations();
+
+            assertThat(logs.formattedMessages()).contains("refund rejected for [email]").doesNotContain("buyer@example.com");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
+        verify(refundReturnContinuationOutPort).recordFailure(RETURN_FAIL, "refund rejected for [email]");
     }
 
     @Test

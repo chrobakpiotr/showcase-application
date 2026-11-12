@@ -433,6 +433,21 @@ class OrderPlacementSagaOrchestratorTest {
     @Test
     void shouldKeepCompensationRetryableWhenStockReleaseFails() {
 
+        final SQLException databaseCause = new SQLException("Key (email)=(buyer@example.com) already exists.", "23505");
+        final String expected = "database error, SQLState=23505, causes=IllegalStateException < SQLException, message omitted";
+        assertStockReleaseFailureIsRetryable(new IllegalStateException("Inventory unavailable", databaseCause), expected);
+    }
+
+    @Test
+    void shouldRedactEmailWhenStockReleaseFailsOutsideTheDatabase() {
+
+        assertStockReleaseFailureIsRetryable(
+                new IllegalStateException("Inventory unavailable for buyer@example.com"),
+                "Inventory unavailable for [email]");
+    }
+
+    private void assertStockReleaseFailureIsRetryable(final RuntimeException failure, final String expectedLastError) {
+
         final Order order = orderWithReservationIdentity();
         final OutboxEventEntity event = OutboxEventEntity.builder()
                 .id(1L)
@@ -445,20 +460,18 @@ class OrderPlacementSagaOrchestratorTest {
                 .thenReturn(List.of(event));
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
         doReturn(Optional.of(event)).when(outboxEventEntityRepository).findByIdForUpdate(1L);
-        final SQLException databaseCause = new SQLException("Key (email)=(buyer@example.com) already exists.", "23505");
-        doThrow(new IllegalStateException("Inventory unavailable", databaseCause)).when(manageStockInPort)
-                .releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
+        doThrow(failure).when(manageStockInPort).releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
 
         try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
             assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
             assertThat(logs.formattedMessages()).doesNotContain(order.getOrderNumber(), "Inventory unavailable");
+            assertThat(logs.formattedMessages()).doesNotContain("buyer@example.com");
             assertThat(logs.events()).allSatisfy(loggingEvent -> assertThat(loggingEvent.getThrowableProxy()).isNull());
         }
 
         assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATING);
         assertThat(event.getCompensationAttempts()).isEqualTo(1);
-        final String expected = "database error, SQLState=23505, causes=IllegalStateException < SQLException, message omitted";
-        assertThat(event.getLastError()).isEqualTo(expected);
+        assertThat(event.getLastError()).isEqualTo(expectedLastError);
         verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
         assertThat(compensationCount()).isZero();
     }

@@ -74,6 +74,22 @@ class OrderAnalyticsConsumerMetricsTest {
     }
 
     @Test
+    void shouldRedactEmailsInNonDatabaseFailureLogs() {
+
+        final IllegalStateException failure = new IllegalStateException("payload rejected for buyer@example.com");
+
+        try (LogCapture logs = new LogCapture(OrderAnalyticsConsumerMetrics.class)) {
+            orderAnalyticsConsumerMetrics.failedDelivery(consumerRecord(), failure, 1);
+            orderAnalyticsConsumerMetrics.recovered(consumerRecord(), failure);
+            orderAnalyticsConsumerMetrics.recoveryFailed(consumerRecord(), failure, failure);
+
+            assertThat(logs.events()).hasSize(3)
+                    .allSatisfy(event -> assertThat(event.getFormattedMessage()).endsWith("payload rejected for [email]"));
+            assertThat(logs.formattedMessages()).doesNotContain("buyer@example.com");
+        }
+    }
+
+    @Test
     void shouldIncrementDeadLetteredCounterWhenRecordIsRecovered() {
 
         orderAnalyticsConsumerMetrics.recovered(consumerRecord(), new IllegalStateException("boom"));
