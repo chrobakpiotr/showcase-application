@@ -23,7 +23,7 @@ runs:
         from pathlib import Path
         requirements = Path("tooling/agent-harness/requirements.txt").read_text().splitlines()
         pins = [match.group(1) for line in requirements
-                if (match := re.fullmatch(r"agent-harness\[grants\] @ git\+https://github\.com/chrobakpiotr/agent-harness\.git@([0-9a-f]{40})", line))]
+                if (match := re.fullmatch(r"agent-harness @ git\+https://github\.com/chrobakpiotr/agent-harness\.git@([0-9a-f]{40})", line))]
         if len(pins) != 1:
             raise SystemExit("Expected exactly one full-SHA agent-harness dependency")
         with open(os.environ["GITHUB_OUTPUT"], "a") as output:
@@ -52,8 +52,9 @@ runs:
         # agent-harness docs/specs/release-0.22.0/ci-followup.md). The pinned commit identity is still
         # enforced: the single full SHA from requirements.txt, the authenticated checkout of exactly that
         # commit, the `rev-parse` check above and the version check below. Credentials are not available
-        # to pip; the remaining pins (cryptography) install from requirements.txt unchanged.
-        python3 -m pip install --no-deps ".ci/agent-harness[grants]"
+        # to pip; the remaining pins (cryptography) install from requirements.txt unchanged. The Harness's own
+        # `grants` extra pins an older cryptography, so it is not requested; Showcase pins cryptography itself.
+        python3 -m pip install --no-deps ".ci/agent-harness"
         grep -v '^agent-harness' tooling/agent-harness/requirements.txt > "$RUNNER_TEMP/requirements-without-harness.txt"
         test -s "$RUNNER_TEMP/requirements-without-harness.txt"
         python3 -m pip install -r "$RUNNER_TEMP/requirements-without-harness.txt"
@@ -61,7 +62,7 @@ runs:
         python3 - <<'PYTHON'
         import json, os, subprocess, sysconfig
         import agent_harness, cryptography
-        assert cryptography.__version__ == '49.0.0', cryptography.__version__  # the Showcase pin, not resolved by pip here
+        assert cryptography.__version__ == '50.0.2', cryptography.__version__  # the Showcase pin, not resolved by pip here
         assert agent_harness.__file__.startswith(sysconfig.get_paths()['purelib']), agent_harness.__file__
         git = lambda *a: subprocess.run(['git', '-C', '.ci/agent-harness', *a], check=True, capture_output=True, text=True).stdout
         commit = git('rev-parse', 'HEAD').strip()
