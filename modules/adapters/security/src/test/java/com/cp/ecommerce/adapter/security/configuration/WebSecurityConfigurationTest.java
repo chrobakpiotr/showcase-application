@@ -10,12 +10,15 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -49,6 +52,10 @@ class WebSecurityConfigurationTest {
     private static final String NOTIFICATIONS_ENDPOINT = "/api/notifications";
 
     private static final String REVIEWS_MODERATION_PENDING_ENDPOINT = "/api/reviews/moderation/pending";
+
+    private static final String REVIEWS_MODERATION_APPROVE_ENDPOINT = "/api/reviews/moderation/REVIEW-1/approve";
+
+    private static final String REVIEWS_WRITE_AUTHORITY = "ROLE_REVIEWS_WRITE";
 
     private static final String SUPPORT_ASSISTANT_ENDPOINT = "/api/support-assistant/questions";
 
@@ -405,7 +412,7 @@ class WebSecurityConfigurationTest {
     @Test
     void shouldRejectListingPendingReviewsWithoutReviewsReadRole() throws Exception {
 
-        mockMvc.perform(get(REVIEWS_MODERATION_PENDING_ENDPOINT).with(jwt().authorities(() -> "ROLE_REVIEWS_WRITE")))
+        mockMvc.perform(get(REVIEWS_MODERATION_PENDING_ENDPOINT).with(jwt().authorities(() -> REVIEWS_WRITE_AUTHORITY)))
                 .andExpect(status().isForbidden());
     }
 
@@ -414,6 +421,37 @@ class WebSecurityConfigurationTest {
 
         mockMvc.perform(get(REVIEWS_MODERATION_PENDING_ENDPOINT).with(jwt().authorities(() -> "ROLE_REVIEWS_READ")))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldAllowUnauthenticatedReadingOfApprovedReviews() throws Exception {
+
+        final int status = mockMvc.perform(get(REVIEWS_ENDPOINT + "/product/SKU-1234")).andReturn().getResponse().getStatus();
+
+        assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldGateModerationDecisionsWithReviewsWriteRole() throws Exception {
+
+        mockMvc.perform(post(REVIEWS_MODERATION_APPROVE_ENDPOINT)).andExpect(status().isUnauthorized());
+        mockMvc.perform(post(REVIEWS_MODERATION_APPROVE_ENDPOINT).with(jwt().authorities(() -> "ROLE_REVIEWS_READ")))
+                .andExpect(status().isForbidden());
+        final MockHttpServletRequestBuilder approve = post(REVIEWS_MODERATION_APPROVE_ENDPOINT);
+        final int status = mockMvc.perform(approve.with(jwt().authorities(() -> REVIEWS_WRITE_AUTHORITY)))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+        assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldDenyOtherMethodsOnModerationInsteadOfThePublicReviewsRule() throws Exception {
+
+        mockMvc.perform(put(REVIEWS_MODERATION_PENDING_ENDPOINT)).andExpect(status().isUnauthorized());
+        mockMvc.perform(delete(REVIEWS_MODERATION_PENDING_ENDPOINT)).andExpect(status().isUnauthorized());
+        mockMvc.perform(put(REVIEWS_MODERATION_PENDING_ENDPOINT).with(jwt().authorities(() -> REVIEWS_WRITE_AUTHORITY)))
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -170,6 +170,9 @@ public class WebSecurityConfiguration {
                         .hasRole(REVIEWS_READ_ROLE)
                         .requestMatchers(HttpMethod.POST, REVIEWS_MODERATION_API_PATH_MATCHER)
                         .hasRole(REVIEWS_WRITE_ROLE)
+                        // Any other method on the moderation subtree must not fall through to the public rule below.
+                        .requestMatchers(REVIEWS_MODERATION_API_PATH_MATCHER)
+                        .denyAll()
                         .requestMatchers(REVIEWS_API_PATH_MATCHER)
                         .permitAll()
                         .requestMatchers(CART_API_PATH_MATCHER)

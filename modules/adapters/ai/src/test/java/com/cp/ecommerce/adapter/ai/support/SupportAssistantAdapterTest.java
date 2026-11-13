@@ -76,6 +76,20 @@ class SupportAssistantAdapterTest {
     }
 
     @Test
+    void shouldAnswerWhenConversationIdIsBlank() {
+
+        respondWith("General policy answer.");
+        runResilientActionEagerly();
+        lenient().when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+        final SupportAssistantAdapter adapter = newAdapter();
+
+        final SupportAnswer answer = adapter.ask(question("Can I cancel an order?"), " ");
+
+        assertThat(answer.getAnswer()).isEqualTo("General policy answer.");
+        assertThat(answer.isAssistantAvailable()).isTrue();
+    }
+
+    @Test
     void shouldIgnoreArbitraryConversationIdWithoutServerSideMemory() {
 
         respondWith("Policy-only answer.");
