@@ -81,7 +81,6 @@ back-office read because the request key is an arbitrary customer e-mail and the
 response is derived from purchase/review history.
 
 `GET /api/recommendations?email=...` therefore requires `ORDER_READ`.
-(Update 2026-11-11: the endpoint is now `POST /api/recommendations` with the e-mail in the body; see ADR 0044.)
 
 No new realm role is added.
 

@@ -53,6 +53,7 @@ The backlog has no open items. For frontend formatting failures, apply the Spotl
 
 ## Do not touch
 
+- The `spec.md`, `plan.md` and `tasks.json` of a feature with lifecycle state: they are its fingerprint, and a changed byte makes `status` refuse the owner's state (`API-ACCESS-001`, 2026-11-12: a one-line update note was reverted; the update lives in ADR 0044). Record later changes in ADRs or new specs.
 - Retain the earlier FIRST-RUN branches and escalated lifecycle state as historical evidence.
 - `.agent-state/completion-repair-claims/`: live lifecycle state, unrelated to the old workflow name.
 - Files whose digests committed evidence cites, and the proof files listed in agent-harness `docs/specs/AH5-17/name-removal-2026-11-05.md`.
