@@ -69,4 +69,13 @@ public class Review extends ValidDomainObject<Review> {
         };
     }
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class ReviewBuilder {
+
+        @Override
+        public String toString() {
+
+            return "ReviewBuilder[personal data omitted]";
+        }
+    }
 }

@@ -67,6 +67,26 @@ class PersonalDataToStringTest {
         assertThat(fields).allSatisfy(field -> assertThat(text).doesNotContain(field + "="));
     }
 
+    @ParameterizedTest
+    @MethodSource("personalFields")
+    void shouldLeavePersonalDataOutOfBuilderToString(final Class<?> type, final List<String> fields) throws Exception {
+
+        if (type.isRecord()) {
+            return;
+        }
+        final Object builder = type.getMethod("builder").invoke(null);
+
+        assertThat(builder).hasToString(type.getSimpleName() + "Builder[personal data omitted]");
+    }
+
+    @Test
+    void shouldLeaveAFilledContactBuilderWithoutItsData() {
+
+        final Contact.ContactBuilder builder = Contact.builder().fullName("Jan Kowalski").email("jan@example.com");
+
+        assertThat(builder.toString()).doesNotContain("Jan Kowalski", "jan@example.com");
+    }
+
     @Test
     void shouldLeaveContactAndAddressDataOutOfAnOrder() {
 

@@ -26,6 +26,8 @@ public final class FailureMessages {
 
     private static final int PLAIN_PHONE_MAX_DIGITS = 11;
 
+    private static final int PLAIN_TEN_DIGITS = 10;
+
     private static final int DECIMAL_MAX_DIGITS = 3;
 
     // Any token with text before an '@' counts as an address, so quoted, non-ASCII and malformed addresses are masked.
@@ -116,10 +118,17 @@ public final class FailureMessages {
         }
         final long digits = run.chars().filter(Character::isDigit).count();
         if (!formatted) {
-            return digits >= PHONE_MIN_DIGITS && digits <= PLAIN_PHONE_MAX_DIGITS;
+            return digits >= PHONE_MIN_DIGITS && digits <= PLAIN_PHONE_MAX_DIGITS && !looksLikeACounter(run, digits);
         }
         // More than one spaced number in a row, such as two phones in one field, is masked as a whole.
         return digits >= PHONE_MIN_DIGITS && (digits <= PHONE_MAX_DIGITS || run.indexOf(' ') >= 0);
+    }
+
+    // A plain ten-digit number starting with 0 or 1 is not a North American phone (area codes start with 2 to 9); it is
+    // more likely epoch seconds or an offset, so it is kept for diagnostics.
+    private static boolean looksLikeACounter(final String run, final long digits) {
+
+        return digits == PLAIN_TEN_DIGITS && run.charAt(0) <= '1';
     }
 
     // Phone groups have at least two digits, except a country or area code after '+' or '('; "1 2 3" is a list.

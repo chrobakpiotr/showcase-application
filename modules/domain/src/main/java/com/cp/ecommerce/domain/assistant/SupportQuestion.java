@@ -39,4 +39,13 @@ public class SupportQuestion extends ValidDomainObject<SupportQuestion> {
         };
     }
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class SupportQuestionBuilder {
+
+        @Override
+        public String toString() {
+
+            return "SupportQuestionBuilder[personal data omitted]";
+        }
+    }
 }

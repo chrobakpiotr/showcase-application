@@ -47,4 +47,13 @@ public class Address extends ValidDomainObject<Address> {
         };
     }
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class AddressBuilder {
+
+        @Override
+        public String toString() {
+
+            return "AddressBuilder[personal data omitted]";
+        }
+    }
 }

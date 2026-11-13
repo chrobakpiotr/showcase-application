@@ -99,6 +99,9 @@ class FailureMessagesTest {
         final String lists = "timestamp 1731340800000, values 1 2 3 4 5 6 7 8 9, at 2026-11-11 10:00, nr600700800";
         assertThat(FailureMessages.redact(lists)).isEqualTo(lists);
         assertThat(FailureMessages.redact("time 600700800:00")).isEqualTo("time 600700800:00");
+        final String counters = "expired at 1731340800, offset 0123456789";
+        assertThat(FailureMessages.redact(counters)).isEqualTo(counters);
+        assertThat(FailureMessages.redact("call 5551234567 or 48600700800")).isEqualTo("call [phone] or [phone]");
         assertThat(FailureMessages.redact("id 600700800_a and 600700800/b")).isEqualTo("id 600700800_a and 600700800/b");
     }
 

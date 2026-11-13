@@ -37,4 +37,13 @@ public class SupportAnswer {
                 .build();
     }
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class SupportAnswerBuilder {
+
+        @Override
+        public String toString() {
+
+            return "SupportAnswerBuilder[personal data omitted]";
+        }
+    }
 }

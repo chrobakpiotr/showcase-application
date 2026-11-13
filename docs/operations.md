@@ -23,10 +23,11 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
   addresses are masked; a Java identity string such as `com.example.Pool@6d06d69c` is kept. A phone number is a run
   of digit groups of at least two digits (a code after `+` or `(` may be shorter), optionally with `+`, spaces,
   dashes or parentheses: 9 to 15 digits when formatted, 9 to 11 when plain, and any length when several spaced
-  numbers follow each other. Runs that continue an identifier, path, time, ARN or decimal number are kept. Plain
-  10-digit numbers such as epoch seconds or Kafka offsets are masked too; that loss of detail is accepted.
+  numbers follow each other. Runs that continue an identifier, path, time, ARN or decimal number are kept, and so is
+  a plain 10-digit number starting with 0 or 1 (epoch seconds, most offsets), which cannot be a North American phone.
+  Other plain 10-digit numbers are masked.
 - Names, street addresses and free text such as order remarks cannot be recognised by pattern, so they are kept out
-  structurally. Domain objects leave personal fields out of `toString()`; web request and response records and the
+  structurally. Domain objects and their Lombok builders leave personal fields out of `toString()`; web request and response records and the
   mail template models with personal data print only their type, because Spring logs bodies at debug level. Mail
   template, PDF and remarks classification failures keep only the cause class names (and the template line and
   column), not third-party causes, whose messages can quote the document or the prompt. FreeMarker does not log

@@ -93,11 +93,10 @@ public class NotificationController {
         }
         final PagedResult<Notification> result = listNotificationsInPort
                 .listNotificationsForRecipient(recipientEmail, new PageQuery(page, size));
-        return toPagedModel(
-                result,
-                page,
-                target -> linkTo(methodOn(NotificationController.class).listNotificationsForRecipient(null, target, size))
-                        .withSelfRel());
+        // Paging links would name a POST endpoint that a GET cannot follow, so only the page metadata is returned; the
+        // client asks for another page by posting the same body with another page parameter.
+        final var content = result.content().stream().map(this::toResourceModel).toList();
+        return PagedModel.of(content, pageMetadata(result));
     }
 
     @GetMapping("/status/{status}")
@@ -155,12 +154,7 @@ public class NotificationController {
             final int page,
             final IntFunction<Link> linkForPage) {
         final var content = result.content().stream().map(this::toResourceModel).toList();
-        final var metadata = new PagedModel.PageMetadata(
-                result.size(),
-                result.page(),
-                result.totalElements(),
-                result.totalPages());
-        final var model = PagedModel.of(content, metadata, linkForPage.apply(page).withSelfRel());
+        final var model = PagedModel.of(content, pageMetadata(result), linkForPage.apply(page).withSelfRel());
         final int lastPage = Math.max(result.totalPages() - 1, 0);
         model.add(linkForPage.apply(0).withRel(IanaLinkRelations.FIRST));
         if (page > 0) {
@@ -173,6 +167,11 @@ public class NotificationController {
         }
         model.add(linkForPage.apply(lastPage).withRel(IanaLinkRelations.LAST));
         return model;
+    }
+
+    private static PagedModel.PageMetadata pageMetadata(final PagedResult<Notification> result) {
+
+        return new PagedModel.PageMetadata(result.size(), result.page(), result.totalElements(), result.totalPages());
     }
 
 }

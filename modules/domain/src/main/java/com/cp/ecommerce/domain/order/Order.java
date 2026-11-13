@@ -86,4 +86,13 @@ public class Order extends ValidDomainObject<Order> {
         return getSubtotal().subtract(discountAmount == null ? BigDecimal.ZERO : discountAmount).max(BigDecimal.ZERO);
     }
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class OrderBuilder {
+
+        @Override
+        public String toString() {
+
+            return "OrderBuilder[personal data omitted]";
+        }
+    }
 }

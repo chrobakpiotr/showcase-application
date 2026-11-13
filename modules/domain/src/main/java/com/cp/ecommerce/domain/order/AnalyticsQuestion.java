@@ -39,4 +39,13 @@ public class AnalyticsQuestion extends ValidDomainObject<AnalyticsQuestion> {
         };
     }
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class AnalyticsQuestionBuilder {
+
+        @Override
+        public String toString() {
+
+            return "AnalyticsQuestionBuilder[personal data omitted]";
+        }
+    }
 }

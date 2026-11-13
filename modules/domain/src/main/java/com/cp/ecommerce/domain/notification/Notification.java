@@ -71,4 +71,13 @@ public class Notification extends ValidDomainObject<Notification> {
         };
     }
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class NotificationBuilder {
+
+        @Override
+        public String toString() {
+
+            return "NotificationBuilder[personal data omitted]";
+        }
+    }
 }

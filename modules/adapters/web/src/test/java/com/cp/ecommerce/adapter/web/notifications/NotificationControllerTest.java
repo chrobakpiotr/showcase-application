@@ -86,7 +86,8 @@ class NotificationControllerTest {
                 .andExpect(
                         jsonPath("$._embedded.notificationResourceList[0].recipientEmail")
                                 .value(NotificationBuilder.TEST_RECIPIENT_EMAIL))
-                .andExpect(jsonPath("$._links.self.href", endsWith(RECIPIENT_SEARCH_ENDPOINT + "?page=0&size=20")));
+                .andExpect(jsonPath("$._links").doesNotExist())
+                .andExpect(jsonPath("$.page.number").value(0));
     }
 
     @Test

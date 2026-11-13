@@ -18,4 +18,13 @@ public class CustomerReviewProfile {
     @ToString.Exclude
     String comment;
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class CustomerReviewProfileBuilder {
+
+        @Override
+        public String toString() {
+
+            return "CustomerReviewProfileBuilder[personal data omitted]";
+        }
+    }
 }

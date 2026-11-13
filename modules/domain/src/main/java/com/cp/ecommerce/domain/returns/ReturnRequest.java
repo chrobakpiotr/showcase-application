@@ -77,4 +77,13 @@ public class ReturnRequest extends ValidDomainObject<ReturnRequest> {
         };
     }
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class ReturnRequestBuilder {
+
+        @Override
+        public String toString() {
+
+            return "ReturnRequestBuilder[personal data omitted]";
+        }
+    }
 }

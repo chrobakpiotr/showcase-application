@@ -48,4 +48,14 @@ public class Contact extends ValidDomainObject<Contact> {
             }
         };
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class ContactBuilder {
+
+        @Override
+        public String toString() {
+
+            return "ContactBuilder[personal data omitted]";
+        }
+    }
 }
