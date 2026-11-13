@@ -53,7 +53,7 @@ runs:
         # enforced: the single full SHA from requirements.txt, the authenticated checkout of exactly that
         # commit, the `rev-parse` check above and the version check below. Credentials are not available
         # to pip; the remaining pins (cryptography) install from requirements.txt unchanged. The Harness's own
-        # `grants` extra pins an older cryptography, so it is not requested; Showcase pins cryptography itself.
+        # `grants` extra pins the same cryptography 50.0.2; Showcase pins it itself, so the extra is not requested.
         python3 -m pip install --no-deps ".ci/agent-harness"
         grep -v '^agent-harness' tooling/agent-harness/requirements.txt > "$RUNNER_TEMP/requirements-without-harness.txt"
         test -s "$RUNNER_TEMP/requirements-without-harness.txt"
