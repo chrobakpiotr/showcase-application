@@ -21,4 +21,14 @@ public record NotificationResource(@Schema(example = "NOTIF-3f2504e0-4f89-11d3-9
 
         return "NotificationResource[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class NotificationResourceBuilder {
+
+        @Override
+        public String toString() {
+
+            return "NotificationResourceBuilder[personal data omitted]";
+        }
+    }
 }

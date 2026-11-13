@@ -21,4 +21,14 @@ public record AnalyticsAnswerResource(
 
         return "AnalyticsAnswerResource[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class AnalyticsAnswerResourceBuilder {
+
+        @Override
+        public String toString() {
+
+            return "AnalyticsAnswerResourceBuilder[personal data omitted]";
+        }
+    }
 }

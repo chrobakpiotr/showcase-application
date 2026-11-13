@@ -24,16 +24,17 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
   of digit groups of at least two digits (a code after `+` or `(` may be shorter), optionally with `+`, spaces,
   dashes or parentheses: 9 to 15 digits when formatted, 9 to 11 when plain, and any length when several spaced
   numbers follow each other. Runs that continue an identifier, path, time, ARN or decimal number are kept, and so is
-  a plain 10-digit number starting with 0 or 1 (epoch seconds, most offsets), which cannot be a North American phone.
-  Other plain 10-digit numbers are masked.
+  a plain 10-digit number starting with 1, which is how epoch seconds look until 2033. Other plain 10-digit numbers,
+  including national numbers with a leading 0, are masked.
 - Names, street addresses and free text such as order remarks cannot be recognised by pattern, so they are kept out
-  structurally. Domain objects and their Lombok builders leave personal fields out of `toString()`; web request and response records and the
-  mail template models with personal data print only their type, because Spring logs bodies at debug level. Mail
-  template, PDF and remarks classification failures keep only the cause class names (and the template line and
-  column), not third-party causes, whose messages can quote the document or the prompt. FreeMarker does not log
-  template errors itself, and the PDF transformer reports errors only by throwing. A successful mail send logs only
-  the dispatch id. All six Ollama adapters log only the cause class names on fallback, and an unrecognised model value
-  by its length.
+  structurally. Domain objects leave personal fields out of `toString()`; web request and response records and the mail
+  template models with personal data print only their type, because Spring logs bodies at debug level. The Lombok
+  builders of all these types, and of the persistence entities that hold recipients, remarks, reasons or review text,
+  print only their type too. Mail template, PDF and remarks classification failures keep only the cause class names (and
+  the template line and column), not third-party causes, whose messages can quote the document or the prompt. FreeMarker
+  does not log template errors itself, and the PDF transformer reports errors only by throwing. A successful mail send
+  logs only the dispatch id. All six Ollama adapters log only the cause class names on fallback, and an unrecognised
+  model value by its length.
 - No endpoint takes a customer e-mail in its URL: recommendations and the notification recipient search take it in a
   POST body, so it does not reach access logs, Spring's debug request log or trace attributes.
 - Mail and PDF templates HTML/XML-escape every value, including customer names, contact data and remarks, so

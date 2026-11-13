@@ -21,4 +21,14 @@ public record ReviewResource(@Schema(example = "REVIEW-3f2504e0-4f89-11d3-9a0c-0
 
         return "ReviewResource[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class ReviewResourceBuilder {
+
+        @Override
+        public String toString() {
+
+            return "ReviewResourceBuilder[personal data omitted]";
+        }
+    }
 }

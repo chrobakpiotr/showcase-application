@@ -23,4 +23,14 @@ public record OrderResource(@Schema(example = "Please leave the package with the
 
         return "OrderResource[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class OrderResourceBuilder {
+
+        @Override
+        public String toString() {
+
+            return "OrderResourceBuilder[personal data omitted]";
+        }
+    }
 }

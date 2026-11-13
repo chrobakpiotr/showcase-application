@@ -21,4 +21,14 @@ public record SupportAnswerResource(@Schema(
 
         return "SupportAnswerResource[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class SupportAnswerResourceBuilder {
+
+        @Override
+        public String toString() {
+
+            return "SupportAnswerResourceBuilder[personal data omitted]";
+        }
+    }
 }

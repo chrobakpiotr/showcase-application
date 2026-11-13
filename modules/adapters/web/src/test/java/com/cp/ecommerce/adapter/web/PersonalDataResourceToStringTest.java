@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.web;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
 import java.util.stream.Stream;
@@ -61,6 +62,30 @@ class PersonalDataResourceToStringTest {
         final Record resource = constructor.newInstance(arguments);
 
         assertThat(resource.toString()).isEqualTo(type.getSimpleName() + "[personal data omitted]").doesNotContain(SECRET);
+    }
+
+    static Stream<Class<? extends Record>> personalDataResourcesWithBuilders() {
+
+        return personalDataResources().filter(PersonalDataResourceToStringTest::hasBuilder);
+    }
+
+    @ParameterizedTest
+    @MethodSource("personalDataResourcesWithBuilders")
+    void shouldOmitComponentsFromBuilderToString(final Class<? extends Record> type) throws ReflectiveOperationException {
+
+        final Object builder = type.getMethod("builder").invoke(null);
+        for (final Method setter : builder.getClass().getMethods()) {
+            if (setter.getParameterCount() == 1 && setter.getParameterTypes()[0] == String.class) {
+                setter.invoke(builder, SECRET);
+            }
+        }
+
+        assertThat(builder.toString()).isEqualTo(type.getSimpleName() + "Builder[personal data omitted]");
+    }
+
+    private static boolean hasBuilder(final Class<?> type) {
+
+        return Arrays.stream(type.getMethods()).anyMatch(method -> "builder".equals(method.getName()));
     }
 
     private static Object sample(final Class<?> parameterType) {

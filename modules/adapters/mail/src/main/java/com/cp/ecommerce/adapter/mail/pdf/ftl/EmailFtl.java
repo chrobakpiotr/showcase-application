@@ -28,4 +28,14 @@ public record EmailFtl(String address) implements Serializable {
 
         return "EmailFtl[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class EmailFtlBuilder {
+
+        @Override
+        public String toString() {
+
+            return "EmailFtlBuilder[personal data omitted]";
+        }
+    }
 }

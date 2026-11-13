@@ -49,4 +49,14 @@ public record ContactFtl(String fullName, EmailFtl email, String phone, AddressF
 
         return "ContactFtl[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class ContactFtlBuilder {
+
+        @Override
+        public String toString() {
+
+            return "ContactFtlBuilder[personal data omitted]";
+        }
+    }
 }

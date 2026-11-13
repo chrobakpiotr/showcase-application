@@ -17,4 +17,14 @@ public record RequestReturnResource(@Schema(example = "ORD-20240907-0001") Strin
 
         return "RequestReturnResource[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class RequestReturnResourceBuilder {
+
+        @Override
+        public String toString() {
+
+            return "RequestReturnResourceBuilder[personal data omitted]";
+        }
+    }
 }

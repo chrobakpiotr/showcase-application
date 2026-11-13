@@ -64,4 +64,13 @@ public class ReturnRequestEntity {
     @Column(name = "VERSION", nullable = false)
     private long version;
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class ReturnRequestEntityBuilder {
+
+        @Override
+        public String toString() {
+
+            return "ReturnRequestEntityBuilder[personal data omitted]";
+        }
+    }
 }

@@ -124,11 +124,11 @@ public final class FailureMessages {
         return digits >= PHONE_MIN_DIGITS && (digits <= PHONE_MAX_DIGITS || run.indexOf(' ') >= 0);
     }
 
-    // A plain ten-digit number starting with 0 or 1 is not a North American phone (area codes start with 2 to 9); it is
-    // more likely epoch seconds or an offset, so it is kept for diagnostics.
+    // A plain ten-digit number starting with 1 is kept for diagnostics: epoch seconds until 2033 look like that, while
+    // national numbers start with a trunk 0 and North American ones with 2 to 9, so a leading 0 is still masked.
     private static boolean looksLikeACounter(final String run, final long digits) {
 
-        return digits == PLAIN_TEN_DIGITS && run.charAt(0) <= '1';
+        return digits == PLAIN_TEN_DIGITS && run.charAt(0) == '1';
     }
 
     // Phone groups have at least two digits, except a country or area code after '+' or '('; "1 2 3" is a list.

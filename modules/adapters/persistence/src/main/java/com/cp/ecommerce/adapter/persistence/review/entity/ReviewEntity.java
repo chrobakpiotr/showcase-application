@@ -56,4 +56,13 @@ public class ReviewEntity {
     @Column(name = "CREATED_DATE", nullable = false)
     private Instant createdDate;
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class ReviewEntityBuilder {
+
+        @Override
+        public String toString() {
+
+            return "ReviewEntityBuilder[personal data omitted]";
+        }
+    }
 }

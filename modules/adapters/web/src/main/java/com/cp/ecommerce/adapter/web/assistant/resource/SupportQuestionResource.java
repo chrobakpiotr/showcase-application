@@ -21,4 +21,14 @@ public record SupportQuestionResource(@Schema(example = "Can I still cancel my o
 
         return "SupportQuestionResource[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class SupportQuestionResourceBuilder {
+
+        @Override
+        public String toString() {
+
+            return "SupportQuestionResourceBuilder[personal data omitted]";
+        }
+    }
 }

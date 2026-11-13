@@ -23,4 +23,14 @@ public record OrderDetailsResource(String orderNumber, Instant created, String r
 
         return "OrderDetailsResource[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class OrderDetailsResourceBuilder {
+
+        @Override
+        public String toString() {
+
+            return "OrderDetailsResourceBuilder[personal data omitted]";
+        }
+    }
 }

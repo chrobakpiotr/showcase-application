@@ -35,4 +35,14 @@ public record AddressFtl(String countryCode, String postalCode, String city, Str
 
         return "AddressFtl[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class AddressFtlBuilder {
+
+        @Override
+        public String toString() {
+
+            return "AddressFtlBuilder[personal data omitted]";
+        }
+    }
 }

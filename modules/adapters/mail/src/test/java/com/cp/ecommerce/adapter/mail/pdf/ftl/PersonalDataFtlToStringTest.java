@@ -18,4 +18,15 @@ class PersonalDataFtlToStringTest {
         assertThat(address).hasToString("AddressFtl[personal data omitted]");
         assertThat(contact).hasToString("ContactFtl[personal data omitted]");
     }
+
+    @Test
+    void shouldOmitPersonalDataFromTemplateModelBuilders() {
+
+        final AddressFtl.AddressFtlBuilder address = AddressFtl.builder().street("Main Street 1").city("Warsaw");
+        final ContactFtl.ContactFtlBuilder contact = ContactFtl.builder().fullName("Jan Kowalski").phone("+48 600 700 800");
+
+        assertThat(EmailFtl.builder().address("jan@example.com")).hasToString("EmailFtlBuilder[personal data omitted]");
+        assertThat(address).hasToString("AddressFtlBuilder[personal data omitted]");
+        assertThat(contact).hasToString("ContactFtlBuilder[personal data omitted]");
+    }
 }

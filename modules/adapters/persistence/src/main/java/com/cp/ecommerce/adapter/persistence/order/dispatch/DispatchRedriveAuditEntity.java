@@ -49,4 +49,14 @@ public class DispatchRedriveAuditEntity {
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class DispatchRedriveAuditEntityBuilder {
+
+        @Override
+        public String toString() {
+
+            return "DispatchRedriveAuditEntityBuilder[personal data omitted]";
+        }
+    }
 }

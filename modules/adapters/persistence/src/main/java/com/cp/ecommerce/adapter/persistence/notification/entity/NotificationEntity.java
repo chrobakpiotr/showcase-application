@@ -77,4 +77,13 @@ public class NotificationEntity {
     @Column(name = "CLAIM_ID", length = 36)
     private String claimId;
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class NotificationEntityBuilder {
+
+        @Override
+        public String toString() {
+
+            return "NotificationEntityBuilder[personal data omitted]";
+        }
+    }
 }

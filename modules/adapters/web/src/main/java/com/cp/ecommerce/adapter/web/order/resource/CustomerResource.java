@@ -18,4 +18,14 @@ public record CustomerResource(@Schema(example = "Jane Doe") String fullName,
 
         return "CustomerResource[personal data omitted]";
     }
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class CustomerResourceBuilder {
+
+        @Override
+        public String toString() {
+
+            return "CustomerResourceBuilder[personal data omitted]";
+        }
+    }
 }

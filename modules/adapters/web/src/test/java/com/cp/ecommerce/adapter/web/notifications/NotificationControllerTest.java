@@ -184,6 +184,23 @@ class NotificationControllerTest {
     }
 
     @Test
+    void shouldReportRecipientSearchPageMetadataWithoutLinks() throws Exception {
+        final Notification value = NotificationBuilder.mockNotification();
+        final PageQuery secondPage = new PageQuery(1, 10);
+        given(listNotificationsInPort.listNotificationsForRecipient(NotificationBuilder.TEST_RECIPIENT_EMAIL, secondPage))
+                .willReturn(new PagedResult<>(List.of(value), 1, 10, 30, 3));
+        given(notificationWebMapper.mapToResource(value)).willReturn(Optional.of(mockNotificationResource()));
+        final String secondPageUri = RECIPIENT_SEARCH_ENDPOINT + "?page=1&size=10";
+        mockMvc.perform(post(secondPageUri).contentType(MediaType.APPLICATION_JSON).content(RECIPIENT_SEARCH_BODY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.size").value(10))
+                .andExpect(jsonPath("$.page.totalElements").value(30))
+                .andExpect(jsonPath("$.page.totalPages").value(3))
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$._links").doesNotExist());
+    }
+
+    @Test
     void shouldRejectInvalidNotificationPage() throws Exception {
         mockMvc.perform(get(NOTIFICATIONS_ENDPOINT).param("page", "-1")).andExpect(status().isBadRequest());
     }

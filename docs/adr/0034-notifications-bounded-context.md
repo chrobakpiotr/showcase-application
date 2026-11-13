@@ -78,5 +78,9 @@ order customer's contact email. That keeps the returns bounded context itself in
 body `{"recipientEmail": "..."}` and the same `page`/`size` query parameters; it requires `NOTIFICATION_READ`. The
 path variable put the recipient's e-mail into URLs, access logs and trace attributes. Paging links point to the same
 POST endpoint and carry no e-mail, so a client repeats the body. A missing or blank recipient returns `400`.
-Later the same day the paging links were dropped: the response carries only the page metadata, and a client posts the
-same body with another `page` parameter.
+
+## Update 2026-11-12: recipient search without paging links
+
+The recipient search no longer returns paging links. They named a POST endpoint that a link-following GET cannot use,
+so the response carries only the page metadata (`size`, `totalElements`, `totalPages`, `number`), and a client asks
+for another page by posting the same body with another `page` parameter.

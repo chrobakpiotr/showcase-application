@@ -46,4 +46,14 @@ public class OrderCancellationRedriveCommandEntity {
 
     @Column(name = "CREATION_DATE", nullable = false)
     private Instant createdDate;
+
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class OrderCancellationRedriveCommandEntityBuilder {
+
+        @Override
+        public String toString() {
+
+            return "OrderCancellationRedriveCommandEntityBuilder[personal data omitted]";
+        }
+    }
 }

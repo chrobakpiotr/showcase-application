@@ -31,8 +31,8 @@ Customer e-mail addresses never travel in URLs, because URLs reach access logs, 
 attributes. Recommendations are `POST /api/recommendations` with `{"email": "..."}`, and the notification recipient
 filter is `POST /api/notifications/recipient-search?page=0&size=20` with `{"recipientEmail": "..."}`. It returns
 the page metadata without paging links, because links would name a POST endpoint that a GET cannot follow; a client
-asks for another page by posting the same body with another `page` parameter. A body or parameter the server cannot read returns `400` with the type
-`urn:problem-type:malformed-request` and a fixed detail. The
+asks for another page by posting the same body with another `page` parameter. A body or parameter the server cannot
+read returns `400` with the type `urn:problem-type:malformed-request` and a fixed detail. The
 [security filter chain](../modules/adapters/security/src/main/java/com/cp/ecommerce/adapter/security/configuration/WebSecurityConfiguration.java)
 defines the full access matrix. See [ADR 0044](adr/0044-explicit-api-access-boundary.md) for the rationale.
 

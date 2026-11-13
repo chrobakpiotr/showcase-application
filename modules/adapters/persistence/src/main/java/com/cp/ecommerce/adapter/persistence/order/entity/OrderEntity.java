@@ -87,4 +87,13 @@ public class OrderEntity {
     @Column(name = "DISCOUNT_AMOUNT", nullable = false)
     private BigDecimal discountAmount;
 
+    /** Lombok completes this builder; only its text is written here, because a builder holds personal data too. */
+    public static class OrderEntityBuilder {
+
+        @Override
+        public String toString() {
+
+            return "OrderEntityBuilder[personal data omitted]";
+        }
+    }
 }
