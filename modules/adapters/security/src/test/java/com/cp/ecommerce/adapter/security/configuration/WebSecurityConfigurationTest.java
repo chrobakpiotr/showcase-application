@@ -17,6 +17,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -450,6 +452,8 @@ class WebSecurityConfigurationTest {
 
         mockMvc.perform(put(REVIEWS_MODERATION_PENDING_ENDPOINT)).andExpect(status().isUnauthorized());
         mockMvc.perform(delete(REVIEWS_MODERATION_PENDING_ENDPOINT)).andExpect(status().isUnauthorized());
+        mockMvc.perform(patch(REVIEWS_MODERATION_PENDING_ENDPOINT)).andExpect(status().isUnauthorized());
+        mockMvc.perform(head(REVIEWS_MODERATION_PENDING_ENDPOINT)).andExpect(status().isUnauthorized());
         mockMvc.perform(put(REVIEWS_MODERATION_PENDING_ENDPOINT).with(jwt().authorities(() -> REVIEWS_WRITE_AUTHORITY)))
                 .andExpect(status().isForbidden());
     }
