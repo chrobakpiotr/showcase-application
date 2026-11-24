@@ -31,9 +31,5 @@ service addresses and teardown.
 
 ## License
 
-Source-available, not open source. From 2026-10-31, original additions and modifications
-owned by Piotr Chrobak are proprietary: you may read and fork this repository on GitHub, and
-no other right is granted without written permission. See [LICENSE](LICENSE). Material
-published under MIT between 2026-09-01 and the baseline revision named in LICENSE remains
-available under the [MIT License](LICENSE-MIT); that grant is not revoked. Third-party
-dependencies retain their own licences.
+Project material is available under the [MIT License](LICENSE). Third-party
+dependencies retain their own licenses.
