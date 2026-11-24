@@ -4,7 +4,7 @@
 [![CI](https://github.com/chrobakpiotr/showcase-application/actions/workflows/ci.yml/badge.svg)](https://github.com/chrobakpiotr/showcase-application/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/chrobakpiotr/showcase-application/actions/workflows/codeql.yml/badge.svg)](https://github.com/chrobakpiotr/showcase-application/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/chrobakpiotr/showcase-application/badge)](https://scorecard.dev/viewer/?uri=github.com/chrobakpiotr/showcase-application)
-[![License: source-available](https://img.shields.io/badge/License-source--available-lightgrey.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A production-shaped e-commerce showcase built with Java 25, Spring Boot and Angular.
 
